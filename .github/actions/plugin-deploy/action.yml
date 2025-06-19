@@ -73,7 +73,7 @@ runs:
       with:
         node-version: '20'
 
-    - name: Install and Bundle Plugin
+    - name: Create Deno-Compatible Plugin Wrapper
       shell: bash
       run: |
         # Extract plugin directory from entry path (remove src/ part)
@@ -81,59 +81,39 @@ runs:
         # Get the base plugin directory (e.g., plugins/plugin-template)
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
         
-        # Navigate to plugin directory
-        cd "$PLUGIN_DIR"
-        echo "Changed to plugin directory: $(pwd)"
+        # Create a Deno-compatible wrapper that uses npm: specifiers
+        cat > "${PLUGIN_DIR}/deno-worker.ts" << 'EOF'
+        // Deno-compatible wrapper for the plugin
+        // Import npm packages using npm: specifiers
+        import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger@1.4.0";
+        import { createPlugin } from "npm:@ubiquity-os/plugin-sdk@3.1.8";
+        import { Manifest } from "npm:@ubiquity-os/plugin-sdk@3.1.8/manifest";
+        import { ExecutionContext } from "npm:hono@4.6.19";
+        import manifest from "./manifest.json" with { type: "json" };
+        import { runPlugin } from "./src/index.ts";
+        import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./src/types/index.ts";
         
-        # Install dependencies if package.json exists
-        if [ -f "package.json" ]; then
-          echo "Installing plugin dependencies..."
-          npm install --legacy-peer-deps
-          
-          # List installed packages for debugging
-          echo "Installed packages:"
-          ls -la node_modules/@ubiquity-os/ || echo "No @ubiquity-os packages found"
-        fi
+        export default {
+          async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+            return createPlugin<PluginSettings, Env, null, SupportedEvents>(
+              (context) => {
+                return runPlugin(context);
+              },
+              manifest as Manifest,
+              {
+                envSchema: envSchema,
+                postCommentOnError: true,
+                settingsSchema: pluginSettingsSchema,
+                logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
+                kernelPublicKey: env.KERNEL_PUBLIC_KEY,
+                bypassSignatureVerification: Deno.env.get("NODE_ENV") === "local",
+              }
+            ).fetch(request, env, executionCtx);
+          },
+        };
+        EOF
         
-        # Install esbuild locally in the plugin directory
-        npm install --save-dev --legacy-peer-deps esbuild
-        
-        # Bundle the plugin
-        echo "Bundling plugin..."
-        ENTRY_FILE=$(basename "${{ inputs.pluginEntry }}")
-        
-        # Since we're already in the plugin directory, just use the entry file name
-        # The entry file is in the src directory
-        ENTRY_PATH="src/$ENTRY_FILE"
-        
-        # Debug: Show current directory and check if file exists
-        echo "Current directory: $(pwd)"
-        echo "Looking for entry file at: $ENTRY_PATH"
-        ls -la src/ || echo "src directory not found"
-        
-        # Create bundled output using npx to run local esbuild
-        npx esbuild "$ENTRY_PATH" \
-          --bundle \
-          --platform=neutral \
-          --format=esm \
-          --target=es2022 \
-          --outfile=bundled-worker.js \
-          --external:node:* \
-          --banner:js="import { Buffer } from 'node:buffer'; globalThis.Buffer = Buffer;" \
-          --define:process.env.NODE_ENV=\"production\" \
-          --loader:.json=json \
-          --alias:dotenv/config=./node_modules/dotenv/lib/main.js
-        
-        echo "Bundle created at: $PLUGIN_DIR/bundled-worker.js"
-        
-        # Verify bundle was created
-        if [ ! -f "bundled-worker.js" ]; then
-          echo "Error: Bundle was not created!"
-          exit 1
-        fi
-        
-        # Return to root directory
-        cd -
+        echo "Created Deno-compatible wrapper at: ${PLUGIN_DIR}/deno-worker.ts"
 
     - name: Generate .env File
       id: generate_env
@@ -169,14 +149,14 @@ runs:
       shell: bash
       run: |
         mkdir -p src
-        # Use the bundled file path
+        # Use the Deno-compatible wrapper
         FULL_PATH="${{ inputs.pluginEntry }}"
         # Get the base plugin directory (e.g., plugins/plugin-template)
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
-        BUNDLED_PATH="../${PLUGIN_DIR}/bundled-worker.js"
+        DENO_WORKER_PATH="../${PLUGIN_DIR}/deno-worker.ts"
         
         cat << EOF > src/deno.ts
-        import worker from "$BUNDLED_PATH";
+        import worker from "$DENO_WORKER_PATH";
         export default {
           async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
             const url = new URL(request.url);
