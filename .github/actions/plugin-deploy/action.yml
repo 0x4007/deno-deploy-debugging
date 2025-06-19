@@ -112,6 +112,21 @@ runs:
         import worker from "$PLUGIN_PATH";
         export default {
           async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+            const url = new URL(request.url);
+            
+            // Serve manifest.json directly
+            if (url.pathname === '/manifest.json') {
+              try {
+                const manifestContent = await Deno.readTextFile('./manifest.json');
+                return new Response(manifestContent, {
+                  headers: { 'Content-Type': 'application/json' }
+                });
+              } catch (error) {
+                return new Response('Manifest not found', { status: 404 });
+              }
+            }
+            
+            // Route other requests to plugin logic
             Object.assign(env, Deno.env.toObject());
             return worker.fetch(request, env, executionCtx);
           },
