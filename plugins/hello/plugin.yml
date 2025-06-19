@@ -1,4 +1,0 @@
-name: Hello Plugin
-version: 1.0.0
-description: A simple hello world plugin
-entry: index.ts

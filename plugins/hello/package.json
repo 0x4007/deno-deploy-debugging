@@ -1,7 +1,0 @@
-{
-  "name": "hello-plugin",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "deno bundle index.ts main.js"
-  }
-}
