@@ -90,8 +90,8 @@ runs:
         import { Manifest } from "npm:@ubiquity-os/plugin-sdk@3.1.8/manifest";
         import { ExecutionContext } from "npm:hono@4.6.19";
         import manifest from "./manifest.json" with { type: "json" };
-        import { runPlugin } from "./src/index.ts";
-        import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./src/types/index.ts";
+        import { runPlugin } from "./src/index";
+        import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./src/types";
         
         export default {
           async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
@@ -180,48 +180,17 @@ runs:
         };
         EOF
 
-    - name: Create Import Map
+    - name: Create Deno Configuration
       shell: bash
       run: |
-        # Create an import map to handle module resolution
-        cat > import_map.json << 'EOF'
+        # Create deno.json with sloppy imports enabled
+        cat > deno.json << 'EOF'
         {
-          "imports": {
-            "@ubiquity-os/ubiquity-os-logger": "npm:@ubiquity-os/ubiquity-os-logger@1.4.0",
-            "@ubiquity-os/plugin-sdk": "npm:@ubiquity-os/plugin-sdk@3.1.8",
-            "@ubiquity-os/plugin-sdk/manifest": "npm:@ubiquity-os/plugin-sdk@3.1.8/manifest",
-            "@sinclair/typebox": "npm:@sinclair/typebox@0.32.35",
-            "dotenv/config": "npm:dotenv@16.4.5/config",
-            "hono": "npm:hono@4.6.19"
-          }
+          "unstable": ["sloppy-imports"]
         }
         EOF
         
-        # Fix imports in all TypeScript files
-        find . -name "*.ts" -type f -exec sh -c '
-          # First, check if the file already has "with { type: \"json\" }" and skip JSON processing if so
-          if ! grep -q "with { type: \"json\" }" "$1"; then
-            sed -i.bak "
-              s/from \"\(\.[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
-              s/from '"'"'\(\.[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
-            " "$1"
-          fi
-          
-          # Always process other imports
-          sed -i.bak2 "
-            s/from \"\.\/types\"/from \"\.\/types\/index\.ts\"/g;
-            s/from '"'"'\.\/types'"'"'/from '"'"'\.\/types\/index\.ts'"'"'/g;
-            s/from \"\(\.[^\"]*[^n]\)\"/from \"\1.ts\"/g;
-            s/from '"'"'\(\.[^'"'"']*[^n]\)'"'"'/from '"'"'\1.ts'"'"'/g;
-            s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
-            s/\.css\.ts/.css/g;
-            s/\.svg\.ts/.svg/g;
-            s/\.ts\.ts/.ts/g;
-            s/\.js\.ts/.js/g
-          " "$1"
-        ' _ {} \;
-        find . -name "*.ts.bak" -delete
-        find . -name "*.ts.bak2" -delete
+        echo "Created deno.json with sloppy imports enabled"
 
     - name: Check if manifest.json exists and copy to root
       id: check_manifest
