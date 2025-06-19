@@ -26,10 +26,22 @@ jobs:
           cd plugins/hello
           npm run build
 
+      - name: Create Deno Deploy project
+        id: create_project
+        run: |
+          PROJECT_NAME="hello-plugin-$GITHUB_RUN_ID"
+          curl -X POST https://dash.deno.com/api/projects \
+            -H "Authorization: Bearer $DENO_DEPLOY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$PROJECT_NAME\"}"
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+
       - name: Deploy to Deno Deploy
         uses: denoland/deployctl@v1
         with:
-          project: hello-plugin
+          project: ${{ steps.create_project.outputs.project_name }}
           entrypoint: plugins/hello/main.ts
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
