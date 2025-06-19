@@ -20,7 +20,8 @@
 ## Current Status
 - **Phase**: Template testing
 - **Completion**: 50%
-- **Next Milestone**: Resolve Docker issues for local testing or test in GitHub environment
+- **Next Milestone**: Waiting for GitHub Actions CI results
+- **CI Status**: Pending (push completed at 2025-06-19 19:12:59 KST)
 
 ## Known Issues
 - Local testing with `act` fails due to Docker socket configuration issues
@@ -28,14 +29,15 @@
 - Limited ecosystem support (only JavaScript/TypeScript)
 - Configuration system not defined
 
-## Local Testing Results
-Attempted to test CI workflows locally using `act`:
-- Installed `act` via Homebrew
-- Encountered Docker socket permission issues
-- Tried various `act` flags and configurations without success
-- Verified Docker is running but `act` can't access the socket
+## GitHub Actions CI Results
 
-### Recommendations:
-1. Test workflows directly in GitHub environment
-2. Investigate Docker socket permissions on macOS
-3. Consider alternative CI testing tools
+- **Workflow**: hello-plugin-deploy.yml
+- **Status**: Fixed (requires secret setup)
+- **Resolution**:
+  - Replaced invalid action with official Deno Deploy action
+  - Requires setting `DENO_DEPLOY_TOKEN` secret in GitHub
+  - To set up:
+    1. Create access token at https://dash.deno.com/account#access-tokens
+    2. In GitHub repo, go to Settings → Secrets → Actions
+    3. Add new secret named `DENO_DEPLOY_TOKEN` with token value
+- **Next Run**: Will trigger on next push to `plugins/hello/**`

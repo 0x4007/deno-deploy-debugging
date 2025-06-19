@@ -26,7 +26,10 @@ jobs:
           cd plugins/hello
           npm run build
 
-      - name: Deploy plugin
-        uses: your-org/plugin-deploy-action@v1
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
         with:
-          plugin-dir: 'plugins/hello'
+          project: hello-plugin
+          entrypoint: plugins/hello/main.ts
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
