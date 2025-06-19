@@ -102,8 +102,14 @@ runs:
       shell: bash
       run: |
         mkdir -p src
-        cat << 'EOF' > src/deno.ts
-        import worker from "${{ inputs.pluginEntry }}";
+        # Adjust the import path to be relative from src/deno.ts
+        PLUGIN_PATH="${{ inputs.pluginEntry }}"
+        # If path starts with ./, replace with ../
+        if [[ "$PLUGIN_PATH" == ./* ]]; then
+          PLUGIN_PATH="../${PLUGIN_PATH:2}"
+        fi
+        cat << EOF > src/deno.ts
+        import worker from "$PLUGIN_PATH";
         export default {
           async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
             Object.assign(env, Deno.env.toObject());
