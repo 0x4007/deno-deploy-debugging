@@ -14,10 +14,8 @@
    ```
    .github/
      actions/             # Reusable GitHub Actions
-       deno-deploy/       # Base deployment action for apps
-       plugin-deploy/     # Plugin deployment (with transformations)
-       plugin-adapter/    # Plugin transformation logic
-       generate-project-name/  # Helper for project naming
+       deno-deploy/       # Self-contained deployment action for apps
+       plugin-deploy/     # Self-contained plugin deployment with transformations
      workflows/           # Test workflows for this repo
        test-plugin-deploy.yml  # Tests plugin deployment
        test-app-deploy.yml     # Tests app deployment

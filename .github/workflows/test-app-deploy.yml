@@ -22,6 +22,6 @@ jobs:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: deploy
           entrypoint: apps/hello-world/main.ts
-          root: .
+          # root: .
           # project_name is optional - will be auto-generated
           # organization is optional - defaults to token holder's account

@@ -37,21 +37,54 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Project name handling is now fully internalized
-    - name: Generate Project Name (if needed)
-      if: ${{ !inputs.project_name }}
+    # Generate project name if not provided
+    - name: Generate Project Name
       id: generate-project
-      uses: ./.github/actions/generate-project-name
-
-    - name: Set Final Project Name
       shell: bash
       run: |
         if [ -n "${{ inputs.project_name }}" ]; then
-          echo "project_name=${{ inputs.project_name }}" >> $GITHUB_ENV
+          # Use provided project name
+          echo "project_name=${{ inputs.project_name }}" >> $GITHUB_OUTPUT
+          echo "Using provided project name: ${{ inputs.project_name }}"
         else
-          echo "project_name=${{ steps.generate-project.outputs.project_name }}" >> $GITHUB_ENV
+          # Generate project name based on repository and branch
+          # Get branch name
+          if [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            branch_name="${{ github.event.workflow_run.head_branch }}"
+          elif [ -n "${{ github.head_ref }}" ]; then
+            branch_name="${{ github.head_ref }}"
+          else
+            branch_name="${GITHUB_REF#refs/heads/}"
+          fi
+
+          # Determine base name from package.json or repository
+          if [ -f package.json ]; then
+            base_name=$(jq -r .name package.json 2>/dev/null)
+            [[ "$base_name" == "null" || -z "$base_name" ]] && base_name="${GITHUB_REPOSITORY##*/}"
+          else
+            base_name="${GITHUB_REPOSITORY##*/}"
+          fi
+
+          # Sanitize branch name
+          sanitized_branch=$(echo "$branch_name" | sed 's#/#--#g' | sed 's#[^a-zA-Z0-9-]#-#g')
+
+          # Combine and truncate if needed
+          project_name="${base_name}-${sanitized_branch}"
+          if [ ${#project_name} -gt 26 ]; then
+            project_prefix=$(echo "$base_name" | cut -c 1-10)
+            branch_hash=$(echo "$branch_name" | sha256sum | cut -c 1-8)
+            project_name="${project_prefix}-${branch_hash}"
+          fi
+
+          echo "project_name=$project_name" >> $GITHUB_OUTPUT
+          echo "Generated project name: $project_name"
         fi
-        echo "Using project name: ${{ env.project_name }}"
+
+    - name: Set Project Name Environment Variable
+      shell: bash
+      run: |
+        echo "project_name=${{ steps.generate-project.outputs.project_name }}" >> $GITHUB_ENV
+        echo "Using project name: ${{ steps.generate-project.outputs.project_name }}"
 
     - name: Determine Production Environment
       id: production-flag
