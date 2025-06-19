@@ -152,13 +152,20 @@ runs:
         ' _ {} \;
         find . -name "*.ts.bak" -delete
 
-    - name: Check if manifest.json exists
+    - name: Check if manifest.json exists and copy to root
       id: check_manifest
       shell: bash
       run: |
-        if [ -f manifest.json ]; then
+        # Check for manifest.json in plugin directory first
+        if [ -f plugins/plugin-template/manifest.json ]; then
+          echo "Found manifest.json in plugin directory, copying to root"
+          cp plugins/plugin-template/manifest.json ./manifest.json
+          echo "exists=true" >> $GITHUB_OUTPUT
+        elif [ -f manifest.json ]; then
+          echo "Found manifest.json in root directory"
           echo "exists=true" >> $GITHUB_OUTPUT
         else
+          echo "No manifest.json found"
           echo "exists=false" >> $GITHUB_OUTPUT
         fi
 
