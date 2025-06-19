@@ -53,7 +53,7 @@ jobs:
 
       - name: Deploy to Deno Deploy
         run: |
-          curl -X POST "https://dash.deno.com/api/projects/${{ steps.create_project.outputs.project_id }}/deployments" \
+          curl -X POST "https://dash.deno.com/api/v1/projects/${{ steps.create_project.outputs.project_id }}/deployments" \
             -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
             -F "file=@plugins/hello/main.js" \
             -F "entrypoint=main.js"
