@@ -33,9 +33,12 @@ Modified the workflow to:
 ## Current Status
 - Workflow now completes successfully
 - Plugin is deployed to Deno Deploy
-- [Latest successful run](https://github.com/0x4007/deno-deploy-debugging/actions/runs/15757280124)
+- [Latest successful run](https://github.com/0x4007/deno-deploy-debugging/actions/runs/15758504838)
+- Deployment URL: https://dash.deno.com/projects/hello-plugin-15758504838
 
-## Remaining Tasks
-- [ ] Add deployment URL to CI output
-- [ ] Document workflow in tech-context.md
-- [ ] Implement reusable workflow templates for other projects
+## Completed Tasks
+- [x] Add deployment URL to CI output (job summary)
+- [x] Document workflow in tech-context.md
+- [x] Implement reusable workflow template (.github/workflows/deno-deploy-template.yml)
+- [x] Fix JSON payload format for Deno Deploy API
+- [x] Update plugin to be Deno Deploy compatible

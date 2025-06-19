@@ -1,21 +1,20 @@
-name: Deploy to Deno Deploy
+name: Deploy Hello World App
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - 'apps/hello-world/**'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/deno-deploy-template.yml'
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write   # Required for OIDC authentication
-      contents: read     # Required to access repository
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: hello-world-app
-          entrypoint: apps/hello-world/main.ts
+    uses: ./.github/workflows/deno-deploy-template.yml
+    with:
+      project_prefix: hello-world-app
+      file_path: apps/hello-world/main.ts
+      entrypoint: main.ts
+      organization_id: 1f86cd68-1bbf-4ac5-8d31-b6096bee31f0
+    secrets:
+      DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
