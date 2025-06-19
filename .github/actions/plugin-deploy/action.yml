@@ -180,11 +180,25 @@ runs:
         };
         EOF
 
-    - name: Fix Import Extensions
+    - name: Create Import Map
       shell: bash
       run: |
-        # Fix imports in all TypeScript files except deno-worker.ts
-        find . -name "*.ts" -type f ! -name "deno-worker.ts" -exec sh -c '
+        # Create an import map to handle module resolution
+        cat > import_map.json << 'EOF'
+        {
+          "imports": {
+            "@ubiquity-os/ubiquity-os-logger": "npm:@ubiquity-os/ubiquity-os-logger@1.4.0",
+            "@ubiquity-os/plugin-sdk": "npm:@ubiquity-os/plugin-sdk@3.1.8",
+            "@ubiquity-os/plugin-sdk/manifest": "npm:@ubiquity-os/plugin-sdk@3.1.8/manifest",
+            "@sinclair/typebox": "npm:@sinclair/typebox@0.32.35",
+            "dotenv/config": "npm:dotenv@16.4.5/config",
+            "hono": "npm:hono@4.6.19"
+          }
+        }
+        EOF
+        
+        # Fix imports in all TypeScript files
+        find . -name "*.ts" -type f -exec sh -c '
           sed -i.bak "
             s/from \"\(\.[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
             s/from '"'"'\(\.[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
