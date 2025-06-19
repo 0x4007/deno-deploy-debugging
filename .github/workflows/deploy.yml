@@ -12,7 +12,7 @@ jobs:
   deploy:
     uses: ./.github/workflows/deno-deploy-template.yml
     with:
-      project_prefix: hello-world-app
+      project_prefix: hw-app
       file_path: apps/hello-world/main.ts
       entrypoint: main.ts
       organization_id: 1f86cd68-1bbf-4ac5-8d31-b6096bee31f0
