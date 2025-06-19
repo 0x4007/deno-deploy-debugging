@@ -76,11 +76,14 @@ runs:
     - name: Install and Bundle Plugin
       shell: bash
       run: |
-        # Extract plugin directory from entry path
-        PLUGIN_DIR=$(dirname "${{ inputs.pluginEntry }}")
+        # Extract plugin directory from entry path (remove src/ part)
+        FULL_PATH="${{ inputs.pluginEntry }}"
+        # Get the base plugin directory (e.g., plugins/plugin-template)
+        PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
         
         # Navigate to plugin directory
         cd "$PLUGIN_DIR"
+        echo "Changed to plugin directory: $(pwd)"
         
         # Install dependencies if package.json exists
         if [ -f "package.json" ]; then
@@ -99,8 +102,14 @@ runs:
         echo "Bundling plugin..."
         ENTRY_FILE=$(basename "${{ inputs.pluginEntry }}")
         
-        # Get the full path to the entry file
+        # Since we're already in the plugin directory, just use the entry file name
+        # The entry file is in the src directory
         ENTRY_PATH="src/$ENTRY_FILE"
+        
+        # Debug: Show current directory and check if file exists
+        echo "Current directory: $(pwd)"
+        echo "Looking for entry file at: $ENTRY_PATH"
+        ls -la src/ || echo "src directory not found"
         
         # Create bundled output using npx to run local esbuild
         npx esbuild "$ENTRY_PATH" \
@@ -161,7 +170,9 @@ runs:
       run: |
         mkdir -p src
         # Use the bundled file path
-        PLUGIN_DIR=$(dirname "${{ inputs.pluginEntry }}")
+        FULL_PATH="${{ inputs.pluginEntry }}"
+        # Get the base plugin directory (e.g., plugins/plugin-template)
+        PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
         BUNDLED_PATH="../${PLUGIN_DIR}/bundled-worker.js"
         
         cat << EOF > src/deno.ts
