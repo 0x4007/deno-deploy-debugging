@@ -150,7 +150,8 @@ runs:
             s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
             s/\.css\.ts/.css/g;
             s/\.svg\.ts/.svg/g;
-            s/\.ts\.ts/.ts/g
+            s/\.ts\.ts/.ts/g;
+            s/\.js\.ts/.js/g
           " "$1"
         ' _ {} \;
         find . -name "*.ts.bak" -delete
