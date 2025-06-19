@@ -52,9 +52,8 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: ${{ steps.create_project.outputs.project_id }}
-          entrypoint: plugins/hello/main.js
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          curl -X POST "https://dash.deno.com/api/projects/${{ steps.create_project.outputs.project_id }}/deployments" \
+            -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
+            -F "file=@plugins/hello/main.js" \
+            -F "entrypoint=main.js"
