@@ -14,16 +14,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
         with:
-          node-version: 20
+          deno-version: v1.45.0
 
-      - name: Install dependencies and build plugin
+      - name: Build plugin
         run: |
           cd plugins/hello
-          npm install
-          npm run build
+          deno bundle index.ts main.js
 
       - name: Create Deno Deploy project
         id: create_project
