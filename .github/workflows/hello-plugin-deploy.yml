@@ -6,11 +6,11 @@ on:
     paths:
       - 'plugins/hello/**'
       - '.github/workflows/hello-plugin-deploy.yml'
-      - '.github/workflows/templates/deno-deploy.yml'
+      - '.github/workflows/deno-deploy-template.yml'
 
 jobs:
   deploy:
-    uses: ./.github/workflows/templates/deno-deploy.yml
+    uses: ./.github/workflows/deno-deploy-template.yml
     with:
       project_prefix: hello-plugin
       file_path: plugins/hello/index.ts
