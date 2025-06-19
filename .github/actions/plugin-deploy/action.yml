@@ -86,17 +86,24 @@ runs:
         if [ -f "package.json" ]; then
           echo "Installing plugin dependencies..."
           npm install
+          
+          # List installed packages for debugging
+          echo "Installed packages:"
+          ls -la node_modules/@ubiquity-os/ || echo "No @ubiquity-os packages found"
         fi
         
-        # Install esbuild globally
-        npm install -g esbuild
+        # Install esbuild locally in the plugin directory
+        npm install --save-dev esbuild
         
         # Bundle the plugin
         echo "Bundling plugin..."
         ENTRY_FILE=$(basename "${{ inputs.pluginEntry }}")
         
-        # Create bundled output
-        esbuild "$ENTRY_FILE" \
+        # Get the full path to the entry file
+        ENTRY_PATH="src/$ENTRY_FILE"
+        
+        # Create bundled output using npx to run local esbuild
+        npx esbuild "$ENTRY_PATH" \
           --bundle \
           --platform=neutral \
           --format=esm \
@@ -104,9 +111,17 @@ runs:
           --outfile=bundled-worker.js \
           --external:node:* \
           --banner:js="import { Buffer } from 'node:buffer'; globalThis.Buffer = Buffer;" \
-          --define:process.env.NODE_ENV=\"production\"
+          --define:process.env.NODE_ENV=\"production\" \
+          --loader:.json=json \
+          --alias:dotenv/config=./node_modules/dotenv/lib/main.js
         
         echo "Bundle created at: $PLUGIN_DIR/bundled-worker.js"
+        
+        # Verify bundle was created
+        if [ ! -f "bundled-worker.js" ]; then
+          echo "Error: Bundle was not created!"
+          exit 1
+        fi
         
         # Return to root directory
         cd -
