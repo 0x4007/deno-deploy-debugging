@@ -17,4 +17,4 @@ jobs:
         uses: ./.github/actions/plugin-deploy
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          pluginEntry: plugins/plugin-template/dist/index.js
+          pluginEntry: plugins/plugin-template/src/worker.ts
