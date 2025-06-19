@@ -16,8 +16,8 @@ on:
         required: true
         type: string
       organization_id:
-        description: 'Deno Deploy organization ID'
-        required: true
+        description: 'Deno Deploy organization ID (optional - defaults to token holder personal org)'
+        required: false
         type: string
       working_directory:
         description: 'Working directory for the deployment'
@@ -62,10 +62,18 @@ jobs:
         id: create_project
         run: |
           PROJECT_NAME="${{ inputs.project_prefix }}-$GITHUB_RUN_ID"
+
+          # Build JSON payload conditionally based on whether organization_id is provided
+          if [ -n "${{ inputs.organization_id }}" ]; then
+            JSON_PAYLOAD="{\"name\":\"$PROJECT_NAME\", \"organizationId\":\"${{ inputs.organization_id }}\"}"
+          else
+            JSON_PAYLOAD="{\"name\":\"$PROJECT_NAME\"}"
+          fi
+
           response=$(curl -s -w "%{http_code}" -X POST https://dash.deno.com/api/projects \
             -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"$PROJECT_NAME\", \"organizationId\":\"${{ inputs.organization_id }}\"}")
+            -d "$JSON_PAYLOAD")
           http_code=${response: -3}
           body=${response%???}
           if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then

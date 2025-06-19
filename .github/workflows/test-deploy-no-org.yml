@@ -1,0 +1,15 @@
+name: Test Deploy Without Org ID
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deno-deploy-template.yml
+    with:
+      project_prefix: test-no-org
+      file_path: plugins/hello/index.ts
+      entrypoint: index.ts
+      # Intentionally not providing organization_id to test fallback
+    secrets:
+      DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}

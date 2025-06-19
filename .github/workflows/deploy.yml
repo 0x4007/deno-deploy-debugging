@@ -15,6 +15,6 @@ jobs:
       project_prefix: hw-app
       file_path: apps/hello-world/main.ts
       entrypoint: main.ts
-      organization_id: 1f86cd68-1bbf-4ac5-8d31-b6096bee31f0
+      # organization_id is now optional - will use token holder's default org
     secrets:
       DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
