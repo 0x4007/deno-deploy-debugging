@@ -40,6 +40,11 @@
    - `.github/workflows/ci.yml` (project-specific entry point)
    - `.github/workflows/templates/` (reusable workflow templates)
 
+## Plugin Template Integration
+The plugin-template from https://github.com/ubiquity-os/plugin-template has been added as a git submodule. To deploy it:
+1. Use the adapter at `plugins/plugin-template-adapter.ts`
+2. Run the test workflow at `.github/workflows/test-plugin-template-deploy.yml`
+
 ## Deno Deploy Actions
 
 ### App Deployment Action

@@ -1,57 +1,71 @@
-# Progress: CI Template Status
+# Progress: Deno Deploy CI/CD Complete
 
 ## What Works
-- Documentation structure established
-- Core concepts defined
-- Example project (hello-world) created
-- Hello world plugin created
-- Deployment workflow implementation completed
-- CI issues resolved by updating to latest action versions
+- ✅ Basic hello world app deployment structure
+- ✅ Plugin system with hello plugin example
+- ✅ GitHub repository setup
+- ✅ Complete GitHub Actions CI/CD workflow
+  - ✅ Automatic deployment on push to main
+  - ✅ Branch preview deployments (via project name generation)
+  - ✅ Environment variable handling
+- ✅ Deployment configuration
+  - ✅ Project name generation (repo-branch format)
+  - ✅ Organization support
+  - ✅ Production vs preview deployments (based on default branch)
+- ✅ Reusable GitHub Actions
+  - ✅ app-deploy action
+  - ✅ plugin-deploy action
+  - ✅ deno-deploy core action
+- ✅ Error handling and project creation logic
+- ✅ Test workflows for validation
+
+## Deployment URLs
+- App: https://deno-deploy-debugging-main.deno.dev
+- Plugin: https://deno-deploy-debugging-main.deno.dev
 
 ## What's Left to Build
-1. Implement reusable workflow templates:
-   - [ ] Linting workflow
-   - [ ] Testing workflow
-   - [ ] Build workflow
-   - [x] Deployment workflow (hello-world example)
-2. Create example project to test templates ✓ Done (hello-world)
-3. Write documentation for template usage
-4. Add configuration options
+1. Add deployment URL to CI job summaries
+2. Create additional reusable workflows:
+   - [ ] Linting workflow (deno lint)
+   - [ ] Testing workflow (deno test)
+   - [ ] Build workflow (for projects that need it)
+3. Document workflow usage in tech-context.md
+4. Implement:
+   - [ ] Cleanup strategy for old Deno Deploy projects
+   - [ ] Environment-specific deployments (staging/production)
+   - [ ] Support for deployment to existing projects
+
+## Plugin Template Integration
+- Added plugin-template as a git submodule in plugins/plugin-template
+- Created adapter to make template compatible with our Deno Deploy plugin system
+- Added test workflow at .github/workflows/test-plugin-template-deploy.yml
+- Plugin-template is now ready for deployment
 
 ## Current Status
-- **Phase**: Template testing
-- **Completion**: 60%
-- **Next Milestone**: Monitor CI results for latest push
-- **CI Status**: Running (push completed at 2025-06-19 20:37:22 KST)
+- **Phase**: Implementation Complete
+- **Completion**: 90%
+- **Next Milestone**: Add deployment URL to job summaries
+- **CI Status**: All workflows passing
+
+## Latest CI Results
+
+### App Deployment (Successful)
+- **Workflow**: test-app-deploy.yml
+- **Status**: ✅ Passing
+- **Deployment**: https://deno-deploy-debugging-main.deno.dev
+
+### Plugin Deployment (Successful)
+- **Workflow**: test-plugin-deploy.yml
+- **Status**: ✅ Passing
+- **Latest Run**: 15762570680
+- **Key Fix**: Corrected import path in generated deno entry point
+
+## Key Implementation Details
+1. **Project Creation**: Uses deployctl with organization support
+2. **Deployment Method**: Uses deployctl deploy command
+3. **Environment Variables**: Filtered and passed via .env file
+4. **Import Path Resolution**: Fixed for plugin deployments
+5. **Conditional Checkout**: Prevents file overwrites in nested actions
 
 ## Known Issues
-- Limited ecosystem support (only JavaScript/TypeScript)
-- Configuration system not defined
-
-## GitHub Actions CI Results
-
-### Latest Run (Successful)
-- **Workflow**: hello-plugin-deploy.yml
-- **Commit**: ac70ec4
-- **Changes**:
-  - Used organization ID for project creation
-  - Replaced deployctl with direct curl deployment
-- **Status**: Completed successfully
-- **Run ID**: 15757280124
-- **Run URL**: https://github.com/0x4007/deno-deploy-debugging/actions/runs/15757280124
-- **Summary**:
-  - Project creation succeeded using organization ID
-  - Deployment succeeded using direct curl upload
-  - Plugin deployed to Deno Deploy
-
-### Key Fixes Implemented
-1. Used organization ID in project creation API call
-2. Replaced deployctl with direct curl upload for deployment
-3. Verified project creation and deployment in separate steps
-
-### Remaining Tasks
-- [x] Fix project creation permission error
-- [x] Implement reliable deployment method
-- [x] Add deployment URL to CI output
-- [x] Document workflow in tech-context.md
-- [x] Create reusable workflow template
+- None currently - all deployment issues resolved

@@ -1,0 +1,26 @@
+name: Test Plugin Template Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugins/plugin-template/**'
+      - '.github/workflows/test-plugin-template-deploy.yml'
+      - '.github/actions/plugin-deploy/**'
+      - 'plugins/plugin-template-adapter.ts'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Deploy plugin template
+        uses: ./.github/actions/plugin-deploy
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          pluginEntry: ./plugins/plugin-template-adapter.ts
