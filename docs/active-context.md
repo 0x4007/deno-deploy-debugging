@@ -1,60 +1,64 @@
 # Active Context: Plugin Template Deployment Debugging
 
 ## Current Focus
-- Implementing bundling solution for Node.js plugins to run on Deno Deploy
-- Developing transparent CI/CD pipeline that handles all transformations
-- Maintaining plugin developer experience with standard Node.js tooling
+- Implementing Deno's native Node.js compatibility for plugin deployment
+- Using npm: specifiers and node: specifiers for module resolution
+- Leveraging Deno's built-in features instead of complex bundling
 
 ## Recent Changes
-- Added esbuild bundling step to plugin-deploy action
-- Configured bundler to handle npm dependencies and create self-contained output
-- Updated deployment to use bundled JavaScript file instead of source TypeScript
-- Fixed import extension issues by using pre-bundled code
-- Maintained compatibility with Node.js, Cloudflare Workers, and Deno Deploy
+- Removed complex esbuild bundling approach
+- Implemented direct npm: imports in Deno entry point
+- Added deno.json configuration for better compatibility
+- Simplified deployment process using Deno's native features
+- Added support for sloppy imports and node globals
 
-## Key Challenges Resolved
-1. ~~Module resolution failures during deployment~~ ✓ Fixed with bundling
-2. ~~Bare module imports not supported by Deno~~ ✓ Bundled into single file
-3. ~~Import extension requirements in Deno~~ ✓ Bypassed with bundling
-4. ~~npm dependencies not available in Deno~~ ✓ Included in bundle
-
-## Solutions Implemented
-- **Bundling Strategy**: Using esbuild to create self-contained JavaScript
-- **Automatic Dependency Installation**: npm install runs in plugin directory
-- **Platform-Neutral Output**: Bundle configured for ESM format, ES2022 target
-- **Node.js Polyfills**: Added Buffer polyfill for compatibility
-- **Environment Variables**: Defined NODE_ENV as "production" during bundling
+## Key Solutions Implemented
+1. **Direct npm: imports**: Using `npm:@package-name` syntax for npm packages
+2. **Node.js compatibility**: Leveraging Deno's built-in node: specifiers
+3. **Configuration**: Added deno.json with proper compiler options
+4. **Simplified wrapper**: Direct import of plugin worker without bundling
 
 ## Deployment Architecture
 ```
 Plugin Source (Node.js/TypeScript)
     ↓
-CI: npm install
+CI: npm install (for type checking)
     ↓
-CI: esbuild bundle
+Deno wrapper with npm: imports
     ↓
-Bundled JavaScript (self-contained)
-    ↓
-Deno Deploy
+Deno Deploy (with native Node.js support)
+```
+
+## Deno Configuration
+```json
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": false
+  },
+  "nodeModulesDir": true,
+  "unstable": ["sloppy-imports", "node-globals"]
+}
 ```
 
 ## Important Decisions
-1. Use bundling to handle all module resolution transparently
-2. Plugin developers write standard Node.js code
-3. CI handles all Deno-specific transformations
-4. Same plugin code works across all platforms
-5. No manual import mapping or URL conversions needed
+1. Use Deno's native Node.js compatibility features
+2. Avoid complex bundling when possible
+3. Leverage npm: specifiers for direct imports
+4. Use deno.json for configuration
+5. Keep plugin source code unchanged
+6. Handle all compatibility in CI/deployment layer
 
 ## Next Steps
-1. Test deployment with bundled plugin
-2. Optimize bundle size if needed
-3. Add caching for npm dependencies
-4. Document bundling configuration options
-5. Consider adding source maps for debugging
+1. Test the deployment with the new approach
+2. Monitor for any runtime issues
+3. Optimize if needed
+4. Document the final working solution
 
-## Lessons Learned
-- Bundling is the most reliable way to handle cross-platform compatibility
-- esbuild provides fast, reliable bundling for edge deployments
-- Platform-specific transformations should be transparent to developers
-- Self-contained bundles eliminate runtime dependency issues
-- CI automation enables seamless multi-platform support
+## Key Learnings
+- Deno's npm: specifiers eliminate most compatibility issues
+- The `nodeModulesDir: true` option helps with module resolution
+- Unstable features like sloppy-imports provide flexibility
+- Direct imports are simpler than bundling for Deno Deploy
+- Native Node.js compatibility in Deno v2 is robust

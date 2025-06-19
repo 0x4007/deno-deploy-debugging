@@ -73,7 +73,7 @@ runs:
       with:
         node-version: '20'
 
-    - name: Install and Bundle Plugin
+    - name: Prepare Plugin for Deno
       shell: bash
       run: |
         # Extract plugin directory from entry path
@@ -84,24 +84,24 @@ runs:
         cd "$PLUGIN_DIR"
         npm install --legacy-peer-deps
         
-        # Install esbuild
-        npm install --save-dev esbuild --legacy-peer-deps
-        
-        # Bundle the worker with all dependencies
-        npx esbuild src/worker.ts \
-          --bundle \
-          --platform=neutral \
-          --format=esm \
-          --target=es2022 \
-          --outfile=bundled-worker.js \
-          --external:node:* \
-          --banner:js="import { Buffer } from 'node:buffer'; globalThis.Buffer = Buffer;" \
-          --define:process.env.NODE_ENV=\"production\"
-        
         # Go back to root
         cd -
         
-        echo "Bundled plugin at: ${PLUGIN_DIR}/bundled-worker.js"
+        # Create deno.json configuration
+        cat > deno.json <<'EOF'
+        {
+          "compilerOptions": {
+            "allowJs": true,
+            "lib": ["deno.window"],
+            "strict": false
+          },
+          "nodeModulesDir": true,
+          "unstable": ["sloppy-imports", "node-globals"]
+        }
+        EOF
+        
+        echo "Plugin dependencies installed in: ${PLUGIN_DIR}"
+        echo "Created deno.json configuration"
 
     - name: Generate .env File
       id: generate_env
@@ -137,36 +137,26 @@ runs:
       shell: bash
       run: |
         mkdir -p src
-        # Use the bundled worker
+        # Get plugin directory path
         FULL_PATH="${{ inputs.pluginEntry }}"
-        # Get the base plugin directory (e.g., plugins/plugin-template)
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
-        BUNDLED_WORKER_PATH="../${PLUGIN_DIR}/bundled-worker.js"
         
+        # Create a Deno-compatible wrapper using npm: specifiers
         cat << EOF > src/deno.ts
-        import worker from "$BUNDLED_WORKER_PATH";
-        export default {
-          async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-            const url = new URL(request.url);
-            
-            // Serve manifest.json directly
-            if (url.pathname === '/manifest.json') {
-              try {
-                const manifestContent = await Deno.readTextFile('./manifest.json');
-                return new Response(manifestContent, {
-                  headers: { 'Content-Type': 'application/json' }
-                });
-              } catch (error) {
-                return new Response('Manifest not found', { status: 404 });
-              }
-            }
-            
-            // Route other requests to plugin logic
-            Object.assign(env, Deno.env.toObject());
-            return worker.fetch(request, env, executionCtx);
-          },
-        };
+        // Import with npm: specifiers for Deno compatibility
+        import "npm:dotenv/config";
+        import { createPlugin } from "npm:@ubiquity-os/plugin-sdk@^3.1.4";
+        import { Manifest } from "npm:@ubiquity-os/plugin-sdk@^3.1.4/manifest";
+        import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger@^1.4.0";
+        
+        // Import the plugin's worker directly
+        import pluginWorker from "../${PLUGIN_DIR}/src/worker.ts";
+        
+        // Re-export the worker's fetch handler
+        export default pluginWorker;
         EOF
+        
+        echo "Created Deno entry point at src/deno.ts"
 
 
     - name: Check if manifest.json exists and copy to root

@@ -11,11 +11,12 @@ The system enables deployment of Deno-based plugins to Deno Deploy using GitHub 
 ```mermaid
 flowchart TD
     A[Git Push] --> B[Checkout Code]
-    B --> C[Fix Import Extensions]
-    C --> D[Bundle Plugin]
-    D --> E[Generate .env]
-    E --> F[Create Deno Project]
-    F --> G[Deploy Worker]
+    B --> C[Install Dependencies]
+    C --> D[Create Deno Config]
+    D --> E[Create Wrapper]
+    E --> F[Generate .env]
+    F --> G[Create Deno Project]
+    G --> H[Deploy Worker]
 ```
 
 ## Key Technologies
@@ -25,15 +26,17 @@ flowchart TD
 - **Git Submodules**: Plugin dependency management
 
 ## CI Pipeline Components
-### Fix Import Extensions
-- Automatically adds `.ts` extensions to imports
-- Uses `sed` for in-place file modifications
-- Handles JSON and other special imports
+### Deno Configuration
+- Creates deno.json with compatibility settings
+- Enables nodeModulesDir for npm packages
+- Allows sloppy imports and node globals
+- Sets appropriate compiler options
 
-### Plugin Bundling
-- Uses `deno bundle` with `--unstable-sloppy-imports`
-- Generates single JavaScript file for deployment
-- Verifies bundle existence before deployment
+### Plugin Wrapper
+- Uses npm: specifiers for direct imports
+- No bundling required
+- Leverages Deno's native Node.js compatibility
+- Minimal adapter code
 
 ### Deno Deploy Integration
 - Creates projects with auto-generated names
@@ -42,24 +45,20 @@ flowchart TD
 - Passes environment variables securely
 
 ## Adapter Pattern
-The plugin adapter acts as a bridge between Deno Deploy's worker interface and the plugin's expected context:
+The plugin adapter uses Deno's npm: specifiers to import the plugin directly:
 
 ```ts
-import { runPlugin } from './plugin-template-bundle.js';
+// Import with npm: specifiers for Deno compatibility
+import "npm:dotenv/config";
+import { createPlugin } from "npm:@ubiquity-os/plugin-sdk@^3.1.4";
+import { Manifest } from "npm:@ubiquity-os/plugin-sdk@^3.1.4/manifest";
+import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger@^1.4.0";
 
-export default {
-  async fetch(request: Request, env: Record<string, unknown>) {
-    // Create context object
-    const context = { ... };
+// Import the plugin's worker directly
+import pluginWorker from "../plugins/plugin-template/src/worker.ts";
 
-    try {
-      await runPlugin(context);
-      return new Response('OK');
-    } catch (error) {
-      return new Response('Error');
-    }
-  }
-}
+// Re-export the worker's fetch handler
+export default pluginWorker;
 ```
 
 ## Environment Handling
@@ -70,6 +69,20 @@ export default {
 ## Best Practices
 1. Keep plugins as submodules for separation
 2. Never modify plugin source code directly
-3. Handle all adaptations in CI pipeline
-4. Use automated scripts for compatibility fixes
-5. Verify each step of the deployment process
+3. Use Deno's native Node.js compatibility features
+4. Prefer npm: specifiers over bundling
+5. Configure deno.json for maximum compatibility
+6. Verify each step of the deployment process
+
+## Deno Configuration
+```json
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": false
+  },
+  "nodeModulesDir": true,
+  "unstable": ["sloppy-imports", "node-globals"]
+}
+```

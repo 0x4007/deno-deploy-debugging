@@ -42,33 +42,37 @@ classDiagram
 ```mermaid
 flowchart LR
     S[Source Code] --> I[Install Dependencies]
-    I --> B[Bundle with esbuild]
-    B --> A[Adapter Wrapper]
-    A --> D[Deployment]
+    I --> C[Create Deno Config]
+    C --> W[Deno Wrapper with npm:]
+    W --> D[Deployment]
 ```
 
 ### Deployment Pipeline
 1. **Source Preparation**:
    - Checkout with submodules
-   - Install Node.js dependencies
-   - Bundle plugin with esbuild
+   - Install Node.js dependencies (for types)
+   - Create deno.json configuration
 
-2. **Bundling Configuration**:
-   - Platform: neutral (works everywhere)
-   - Format: ESM (ES Modules)
-   - Target: ES2022
-   - External: node:* (Node built-ins)
-   - Includes Buffer polyfill
-   - Sets NODE_ENV to production
+2. **Deno Configuration**:
+   - Enable nodeModulesDir for compatibility
+   - Allow sloppy imports
+   - Enable node globals
+   - Set appropriate compiler options
 
-3. **Environment Setup**:
+3. **Wrapper Creation**:
+   - Use npm: specifiers for packages
+   - Direct import of plugin worker
+   - No bundling required
+   - Leverage Deno's native compatibility
+
+4. **Environment Setup**:
    - Filter sensitive variables
    - Generate .env file
    - Configure project settings
 
-4. **Deployment Execution**:
+5. **Deployment Execution**:
    - Create/verify Deno project
-   - Deploy bundled worker script
+   - Deploy with Deno entry point
    - Verify deployment status
 
 ## Best Practices
@@ -92,18 +96,25 @@ flowchart LR
 - Provide clear error messages in logs
 
 ## Critical Implementation Details
-1. Import transformations must handle:
-   - Relative paths
-   - JSON imports
-   - Different quote styles
-   - File extensions
+1. Deno compatibility approach:
+   - Use npm: specifiers for npm packages
+   - Use node: specifiers for Node.js built-ins
+   - Enable nodeModulesDir in deno.json
+   - Allow sloppy imports for flexibility
 
-2. Environment variables must:
+2. Configuration requirements:
+   - deno.json with proper compiler options
+   - Unstable features for full compatibility
+   - Direct imports instead of bundling
+   - Minimal wrapper code
+
+3. Environment variables must:
    - Exclude GitHub and system variables
    - Preserve plugin-specific configuration
    - Be passed via temporary .env file
 
-3. Deployment must:
+4. Deployment must:
    - Verify project existence before deployment
    - Handle both personal and org projects
    - Support production and preview deployments
+   - Use native Deno features over workarounds
