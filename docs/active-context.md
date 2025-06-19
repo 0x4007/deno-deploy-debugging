@@ -1,52 +1,60 @@
 # Active Context: Plugin Template Deployment Debugging
 
 ## Current Focus
-- Resolving deployment issues with plugin-template submodule
-- Developing robust CI/CD pipeline for Deno Deploy
-- Maintaining separation between core project and plugin code
+- Implementing bundling solution for Node.js plugins to run on Deno Deploy
+- Developing transparent CI/CD pipeline that handles all transformations
+- Maintaining plugin developer experience with standard Node.js tooling
 
 ## Recent Changes
-- Implemented GitHub Actions workflow for plugin deployment
-- Created adapter to make plugin-template compatible with Deno Deploy
-- Added automated import extension fixing in CI pipeline
-- Developed script to handle Deno module resolution quirks
-- Fixed submodule handling in CI environment
+- Added esbuild bundling step to plugin-deploy action
+- Configured bundler to handle npm dependencies and create self-contained output
+- Updated deployment to use bundled JavaScript file instead of source TypeScript
+- Fixed import extension issues by using pre-bundled code
+- Maintained compatibility with Node.js, Cloudflare Workers, and Deno Deploy
 
-## Key Challenges
-1. Module resolution failures during deployment
-2. Submodule management in CI environment
-3. Import extension requirements in Deno
-4. Maintaining plugin source integrity while adapting for deployment
+## Key Challenges Resolved
+1. ~~Module resolution failures during deployment~~ ✓ Fixed with bundling
+2. ~~Bare module imports not supported by Deno~~ ✓ Bundled into single file
+3. ~~Import extension requirements in Deno~~ ✓ Bypassed with bundling
+4. ~~npm dependencies not available in Deno~~ ✓ Included in bundle
 
 ## Solutions Implemented
-- Added CI step to automatically fix import extensions
-- Created script to modify imports without changing source code
-- Improved submodule checkout process in workflow
-- Added verification steps for bundle generation
-- Implemented working directory specification for deployment
+- **Bundling Strategy**: Using esbuild to create self-contained JavaScript
+- **Automatic Dependency Installation**: npm install runs in plugin directory
+- **Platform-Neutral Output**: Bundle configured for ESM format, ES2022 target
+- **Node.js Polyfills**: Added Buffer polyfill for compatibility
+- **Environment Variables**: Defined NODE_ENV as "production" during bundling
 
-## Deployment Status
-- Plugin-template deployment workflow is functional
-- Last successful deployment: [Pending verification]
-- Deployment URL: https://deno-deploy-debugging-main.deno.dev
+## Deployment Architecture
+```
+Plugin Source (Node.js/TypeScript)
+    ↓
+CI: npm install
+    ↓
+CI: esbuild bundle
+    ↓
+Bundled JavaScript (self-contained)
+    ↓
+Deno Deploy
+```
 
 ## Important Decisions
-1. Never modify plugin source code directly
-2. Handle all adaptations in CI pipeline
-3. Use submodules for plugin integration
-4. Maintain separate deployment workflow for plugins
-5. Use Deno's unstable-sloppy-imports as fallback
+1. Use bundling to handle all module resolution transparently
+2. Plugin developers write standard Node.js code
+3. CI handles all Deno-specific transformations
+4. Same plugin code works across all platforms
+5. No manual import mapping or URL conversions needed
 
 ## Next Steps
-1. Verify successful deployment of plugin-template
-2. Add deployment status monitoring
-3. Create documentation for plugin integration process
-4. Implement cleanup of old deployments
-5. Add automated testing for deployed plugins
+1. Test deployment with bundled plugin
+2. Optimize bundle size if needed
+3. Add caching for npm dependencies
+4. Document bundling configuration options
+5. Consider adding source maps for debugging
 
 ## Lessons Learned
-- Deno requires explicit file extensions in imports
-- Git submodules require careful handling in CI
-- Automated text processing can solve compatibility issues
-- Separation of concerns is crucial for maintainability
-- CI pipelines should adapt code, not developers
+- Bundling is the most reliable way to handle cross-platform compatibility
+- esbuild provides fast, reliable bundling for edge deployments
+- Platform-specific transformations should be transparent to developers
+- Self-contained bundles eliminate runtime dependency issues
+- CI automation enables seamless multi-platform support

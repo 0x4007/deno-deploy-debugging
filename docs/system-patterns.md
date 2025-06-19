@@ -41,26 +41,34 @@ classDiagram
 ### CI Transformation Layer
 ```mermaid
 flowchart LR
-    S[Source Code] --> F[Fix Imports]
-    F --> B[Bundling]
-    B --> A[Adapter]
+    S[Source Code] --> I[Install Dependencies]
+    I --> B[Bundle with esbuild]
+    B --> A[Adapter Wrapper]
     A --> D[Deployment]
 ```
 
 ### Deployment Pipeline
 1. **Source Preparation**:
    - Checkout with submodules
-   - Fix import extensions
-   - Bundle plugin code
+   - Install Node.js dependencies
+   - Bundle plugin with esbuild
 
-2. **Environment Setup**:
+2. **Bundling Configuration**:
+   - Platform: neutral (works everywhere)
+   - Format: ESM (ES Modules)
+   - Target: ES2022
+   - External: node:* (Node built-ins)
+   - Includes Buffer polyfill
+   - Sets NODE_ENV to production
+
+3. **Environment Setup**:
    - Filter sensitive variables
    - Generate .env file
    - Configure project settings
 
-3. **Deployment Execution**:
+4. **Deployment Execution**:
    - Create/verify Deno project
-   - Deploy worker script
+   - Deploy bundled worker script
    - Verify deployment status
 
 ## Best Practices
