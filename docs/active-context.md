@@ -1,49 +1,52 @@
-# Active Context: Deno Deploy CI Successfully Implemented
+# Active Context: Plugin Template Deployment Debugging
 
 ## Current Focus
-- Successfully implemented GitHub Actions CI/CD workflow for Deno Deploy
-- Both app and plugin deployments are working correctly
-- All deployment issues have been resolved
+- Resolving deployment issues with plugin-template submodule
+- Developing robust CI/CD pipeline for Deno Deploy
+- Maintaining separation between core project and plugin code
 
 ## Recent Changes
-- Created reusable GitHub Actions:
-  - `.github/actions/app-deploy/action.yml` - For deploying Deno applications
-  - `.github/actions/plugin-deploy/action.yml` - For deploying plugins with worker interface
-  - `.github/actions/deno-deploy/action.yml` - Core deployment logic used by both
-- Fixed deployment issues:
-  - Resolved project creation permission errors by using organization ID
-  - Fixed import path resolution in plugin deployments
-  - Added conditional checkout to prevent file overwrites
-  - Implemented proper environment variable filtering
-- Created test workflows:
-  - `.github/workflows/test-app-deploy.yml` - Tests app deployment
-  - `.github/workflows/test-plugin-deploy.yml` - Tests plugin deployment
+- Implemented GitHub Actions workflow for plugin deployment
+- Created adapter to make plugin-template compatible with Deno Deploy
+- Added automated import extension fixing in CI pipeline
+- Developed script to handle Deno module resolution quirks
+- Fixed submodule handling in CI environment
 
-## Deployment URLs
-- App: https://deno-deploy-debugging-main.deno.dev
-- Plugin: https://deno-deploy-debugging-main.deno.dev (same project name for main branch)
+## Key Challenges
+1. Module resolution failures during deployment
+2. Submodule management in CI environment
+3. Import extension requirements in Deno
+4. Maintaining plugin source integrity while adapting for deployment
 
-## Key Implementation Details
-- Project names are auto-generated based on repository name and branch
-- Supports both personal and organization deployments
-- Uses deployctl for actual deployment after project creation
-- Environment variables are filtered and passed via .env file
-- Production deployments are automatic for default branch
+## Solutions Implemented
+- Added CI step to automatically fix import extensions
+- Created script to modify imports without changing source code
+- Improved submodule checkout process in workflow
+- Added verification steps for bundle generation
+- Implemented working directory specification for deployment
+
+## Deployment Status
+- Plugin-template deployment workflow is functional
+- Last successful deployment: [Pending verification]
+- Deployment URL: https://deno-deploy-debugging-main.deno.dev
+
+## Important Decisions
+1. Never modify plugin source code directly
+2. Handle all adaptations in CI pipeline
+3. Use submodules for plugin integration
+4. Maintain separate deployment workflow for plugins
+5. Use Deno's unstable-sloppy-imports as fallback
 
 ## Next Steps
-1. Add deployment URL output to CI job summaries
-2. Document the workflow usage in tech-context.md
-3. Implement cleanup strategy for old Deno Deploy projects
-4. Create environment-specific deployments (staging/production)
+1. Verify successful deployment of plugin-template
+2. Add deployment status monitoring
+3. Create documentation for plugin integration process
+4. Implement cleanup of old deployments
+5. Add automated testing for deployed plugins
 
-## Plugin Template Integration
-- Added plugin-template as a git submodule in plugins/plugin-template
-- Created adapter at plugins/plugin-template-adapter.ts to make template compatible
-- Added test workflow at .github/workflows/test-plugin-template-deploy.yml
-
-## Active Decisions
-- Using reusable actions to maintain DRY principle
-- Auto-generating project names to avoid conflicts
-- Supporting both personal and organization deployments
-- Using branch names in project names for multi-branch deployments
-- Direct TypeScript deployment without compilation
+## Lessons Learned
+- Deno requires explicit file extensions in imports
+- Git submodules require careful handling in CI
+- Automated text processing can solve compatibility issues
+- Separation of concerns is crucial for maintainability
+- CI pipelines should adapt code, not developers

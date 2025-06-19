@@ -1,4 +1,4 @@
-# CI Debugging Summary
+# CI Debugging Summary - RESOLVED ✅
 
 ## Problem
 The GitHub Actions CI workflow for deploying a Deno plugin was failing due to permission issues when creating projects on Deno Deploy.
@@ -19,26 +19,42 @@ The GitHub Actions CI workflow for deploying a Deno plugin was failing due to pe
    APIError: The authorization token is not valid: You don't have permission to access the project
    ```
 
-4. Implemented fixes:
-   - Added organization ID to project creation API call
-   - Replaced `deployctl` action with direct curl deployment
-   - Verified project creation and deployment in separate steps
+## Resolution Steps
+1. **Fixed project creation permission issues**:
+   - Modified workflow to support both organization and personal account deployments
+   - Added fallback logic when organization doesn't exist
 
-## Solution
-Modified the workflow to:
-1. Create projects using organization ID
-2. Deploy using direct curl upload instead of `deployctl`
-3. Added better error handling and logging
+2. **Created reusable GitHub Actions**:
+   - `app-deploy` - For deploying Deno applications
+   - `plugin-deploy` - For deploying plugins with worker interface
+   - `deno-deploy` - Core deployment logic used by both
+
+3. **Fixed plugin deployment issues**:
+   - Corrected import path resolution (./plugins → ../plugins)
+   - Added conditional checkout to prevent file overwrites
+   - Implemented proper environment variable filtering
+
+## Final Solution
+The workflow now:
+1. Auto-generates project names based on repository and branch
+2. Creates projects using deployctl with proper error handling
+3. Deploys using deployctl with environment variables
+4. Handles both app and plugin deployments
+5. Supports production and preview deployments
 
 ## Current Status
-- Workflow now completes successfully
-- Plugin is deployed to Deno Deploy
-- [Latest successful run](https://github.com/0x4007/deno-deploy-debugging/actions/runs/15758504838)
-- Deployment URL: https://dash.deno.com/projects/hello-plugin-15758504838
+- ✅ Workflow completes successfully
+- ✅ Both app and plugin are deployed to Deno Deploy
+- ✅ Latest successful runs:
+  - App deployment: [15762540892](https://github.com/0x4007/deno-deploy-debugging/actions/runs/15762540892)
+  - Plugin deployment: [15762570680](https://github.com/0x4007/deno-deploy-debugging/actions/runs/15762570680)
 
-## Completed Tasks
-- [x] Add deployment URL to CI output (job summary)
-- [x] Document workflow in tech-context.md
-- [x] Implement reusable workflow template (.github/workflows/deno-deploy-template.yml)
-- [x] Fix JSON payload format for Deno Deploy API
-- [x] Update plugin to be Deno Deploy compatible
+## Deployment URLs
+- App: https://deno-deploy-debugging-main.deno.dev
+- Plugin: https://deno-deploy-debugging-main.deno.dev
+
+## Key Learnings
+1. Deno Deploy requires careful handling of import paths in generated files
+2. GitHub Actions nested actions need skip_checkout to preserve generated files
+3. Environment variable filtering is important for security
+4. Project name generation helps avoid conflicts in multi-branch setups

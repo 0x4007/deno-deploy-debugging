@@ -1,106 +1,75 @@
-# Tech Context: CI Template Technologies
+# Technical Context: Plugin Deployment Architecture
 
-## Technologies Used
-- **CI Platform**: GitHub Actions
-- **Languages**: JavaScript, TypeScript, Deno
-- **Deployment Platform**: Deno Deploy
-- **Package Managers**: npm, Yarn, pnpm, Deno
-- **Testing Frameworks**: Jest, Mocha, Jasmine, Deno test
-- **Linting Tools**: ESLint, Prettier, deno lint
-- **Build Tools**: Webpack, Vite, Rollup, Deno bundle
+## System Overview
+The system enables deployment of Deno-based plugins to Deno Deploy using GitHub Actions. Key components:
+1. **Plugin Template**: Git submodule containing plugin code
+2. **Adapter**: Converts plugin to Deno Deploy compatible worker
+3. **CI Pipeline**: GitHub Actions workflow for building and deployment
+4. **Deploy Scripts**: Reusable actions for Deno Deploy integration
 
-## Development Setup
-1. **Repository Structure**:
-   ```
-   .github/
-     actions/             # Reusable GitHub Actions
-       deno-deploy/       # Self-contained deployment action for apps
-       plugin-deploy/     # Self-contained plugin deployment with transformations
-     workflows/           # Test workflows for this repo
-       test-plugin-deploy.yml  # Tests plugin deployment
-       test-app-deploy.yml     # Tests app deployment
-     examples/            # Example workflows for users
-       example-plugin.yml
-       example-app.yml
-   docs/
-     ... documentation files ...
-   plugins/
-     hello/               # Example Deno plugin
-   apps/
-     hello-world/         # Example app
-   ```
-
-2. **Dependencies**:
-   - Node.js v18+ (for Node.js projects)
-   - Deno v2.x (for Deno projects)
-   - GitHub Actions environment
-   - Deno Deploy account and API token
-
-3. **Configuration Files**:
-   - `.github/workflows/ci.yml` (project-specific entry point)
-   - `.github/workflows/templates/` (reusable workflow templates)
-
-## Plugin Template Integration
-The plugin-template from https://github.com/ubiquity-os/plugin-template has been added as a git submodule. To deploy it:
-1. Use the adapter at `plugins/plugin-template-adapter.ts`
-2. Run the test workflow at `.github/workflows/test-plugin-template-deploy.yml`
-
-## Deno Deploy Actions
-
-### App Deployment Action
-Located at `.github/actions/deno-deploy/`:
-- Deploys applications directly to Deno Deploy
-- Auto-generates project names or accepts custom names
-- Supports organization deployment
-- Required inputs:
-  - `token`: Deno Deploy access token
-  - `action`: 'deploy' or 'delete'
-- Optional inputs:
-  - `entrypoint`: Script entrypoint (default: "worker/main.ts")
-  - `root`: Root directory (default: ".")
-  - `project_name`: Custom project name (auto-generated if not provided)
-  - `organization`: Target organization (defaults to personal account)
-  - `env_file`: Path to .env file
-  - `production`: Deploy to production (auto-detected from branch)
-
-### Plugin Deployment Action
-Located at `.github/actions/plugin-deploy/`:
-- Deploys plugins with necessary transformations
-- Combines plugin-adapter + deno-deploy actions
-- Handles manifest.json updates
-- Required inputs:
-  - `token`: Deno Deploy access token
-- Optional inputs:
-  - `pluginEntry`: Path to plugin entry file (default: "./worker")
-  - `organization`: Target organization
-
-### Usage Examples
-
-**App Deployment:**
-```yaml
-- uses: ./.github/actions/deno-deploy
-  with:
-    token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-    action: deploy
-    entrypoint: src/main.ts
+## Deployment Process
+```mermaid
+flowchart TD
+    A[Git Push] --> B[Checkout Code]
+    B --> C[Fix Import Extensions]
+    C --> D[Bundle Plugin]
+    D --> E[Generate .env]
+    E --> F[Create Deno Project]
+    F --> G[Deploy Worker]
 ```
 
-**Plugin Deployment:**
-```yaml
-- uses: ./.github/actions/plugin-deploy
-  with:
-    token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-    pluginEntry: ./plugins/my-plugin/index.ts
+## Key Technologies
+- **Deno Deploy**: Serverless deployment platform
+- **GitHub Actions**: CI/CD orchestration
+- **Deno CLI**: Runtime and bundling tool
+- **Git Submodules**: Plugin dependency management
+
+## CI Pipeline Components
+### Fix Import Extensions
+- Automatically adds `.ts` extensions to imports
+- Uses `sed` for in-place file modifications
+- Handles JSON and other special imports
+
+### Plugin Bundling
+- Uses `deno bundle` with `--unstable-sloppy-imports`
+- Generates single JavaScript file for deployment
+- Verifies bundle existence before deployment
+
+### Deno Deploy Integration
+- Creates projects with auto-generated names
+- Handles both personal and organization deployments
+- Uses `deployctl` for deployment operations
+- Passes environment variables securely
+
+## Adapter Pattern
+The plugin adapter acts as a bridge between Deno Deploy's worker interface and the plugin's expected context:
+
+```ts
+import { runPlugin } from './plugin-template-bundle.js';
+
+export default {
+  async fetch(request: Request, env: Record<string, unknown>) {
+    // Create context object
+    const context = { ... };
+
+    try {
+      await runPlugin(context);
+      return new Response('OK');
+    } catch (error) {
+      return new Response('Error');
+    }
+  }
+}
 ```
 
-## Technical Constraints
-- GitHub repositories only
-- Requires appropriate deployment tokens
-- Deno Deploy requires organization ID for project creation
-- Projects are created per deployment (consider cleanup strategy)
+## Environment Handling
+- Filters sensitive environment variables
+- Generates temporary .env file for deployment
+- Preserves only necessary variables for runtime
 
-## Dependencies
-- GitHub Actions
-- Deno runtime
-- Deno Deploy API
-- curl and jq (for API interactions)
+## Best Practices
+1. Keep plugins as submodules for separation
+2. Never modify plugin source code directly
+3. Handle all adaptations in CI pipeline
+4. Use automated scripts for compatibility fixes
+5. Verify each step of the deployment process

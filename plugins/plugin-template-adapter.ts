@@ -1,10 +1,9 @@
-import { runPlugin } from './plugin-template/src/index.ts';
-import type { Context } from './plugin-template/src/types/context.ts';
+import { runPlugin } from './plugin-template-bundle.js';
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>): Promise<Response> {
     // Create a minimal context object for the plugin
-    const context: Context = {
+    const context = {
       eventName: 'demo',
       payload: {},
       logger: {

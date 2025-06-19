@@ -1,0 +1,61 @@
+# Project Intelligence: Deno Deploy Plugin Integration
+
+## Critical Implementation Paths
+1. Plugin Deployment CI Pipeline:
+   Checkout → Fix Imports → Bundle → Deploy
+2. Import Fixing Process:
+   Find TS files → Transform imports → Delete backups
+3. Deployment Verification:
+   Workflow status → Log analysis → URL testing
+
+## User Workflow Preferences
+- Prefers CLI tools over UI for CI management
+- Requires detailed error logging for debugging
+- Values separation between project and plugins
+- Prefers atomic commits for CI changes
+
+## Project-Specific Patterns
+### Plugin Integration
+- Plugins are always included as git submodules
+- Adapter files bridge plugins to Deno Deploy
+- CI handles all necessary transformations
+- Never modify plugin source code directly
+
+### CI Pipeline
+- Use `gh` CLI for workflow management
+- Include verification steps after key operations
+- Auto-generate project names with branch info
+- Use `deployctl` for Deno Deploy operations
+
+### Error Handling
+- Check logs for "Module not found" errors
+- Verify submodule checkout success
+- Check bundle file existence before deployment
+- Monitor deployment status via `gh run watch`
+
+## Tool Usage Patterns
+- Use `sed` for bulk file transformations
+- Prefer `deno bundle` over manual bundling
+- Use `gh run rerun` to retry workflows
+- Use `gh run view --log-failed` for diagnostics
+
+## Important Decisions
+1. Always use absolute paths in CI scripts
+2. Maintain separate workflows for apps/plugins
+3. Automate all compatibility adaptations
+4. Preserve plugin source integrity
+5. Use temporary directories for env files
+
+## Key Learnings
+1. Deno requires explicit import extensions
+2. Git submodules need recursive checkout
+3. CI must handle both source and build artifacts
+4. Deployment errors often stem from path issues
+5. Automated fixes are safer than manual edits
+
+## Rules of Thumb
+- When import errors occur: check extension fixing step
+- When deployment fails: verify bundle existence
+- When submodules fail: ensure recursive checkout
+- When env vars missing: check filtering script
+- When project creation fails: verify org permissions
