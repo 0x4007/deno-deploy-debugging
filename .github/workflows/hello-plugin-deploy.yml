@@ -33,7 +33,7 @@ jobs:
           response=$(curl -s -w "%{http_code}" -X POST https://dash.deno.com/api/projects \
             -H "Authorization: Bearer $DENO_DEPLOY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"$PROJECT_NAME\"}")
+            -d "{\"name\":\"$PROJECT_NAME\", \"organizationId\": \"87642b43-f828-4cdc-a2a9-f43eb0b0ec98\"}")
           http_code=${response: -3}
           body=${response%???}
           if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
