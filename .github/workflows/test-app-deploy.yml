@@ -1,0 +1,27 @@
+name: Test App Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/hello-world/**'
+      - '.github/workflows/test-app-deploy.yml'
+      - '.github/actions/deno-deploy/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy App
+        uses: ./.github/actions/deno-deploy
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          action: deploy
+          entrypoint: apps/hello-world/main.ts
+          root: .
+          # project_name is optional - will be auto-generated
+          # organization is optional - defaults to token holder's account

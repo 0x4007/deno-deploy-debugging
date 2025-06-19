@@ -1,0 +1,26 @@
+name: Test Plugin Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/hello/**'
+      - '.github/workflows/test-plugin-deploy.yml'
+      - '.github/actions/plugin-deploy/**'
+      - '.github/actions/plugin-adapter/**'
+      - '.github/actions/deno-deploy/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Plugin
+        uses: ./.github/actions/plugin-deploy
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          pluginEntry: "./plugins/hello/index.ts"
+          # organization is optional - defaults to token holder's account

@@ -13,13 +13,17 @@
 1. **Repository Structure**:
    ```
    .github/
-     workflows/
-       templates/
-         deno-deploy.yml    # Reusable Deno Deploy workflow
-         lint.yml          # (planned)
-         test.yml          # (planned)
-         build.yml         # (planned)
-       hello-plugin-deploy.yml  # Example using reusable workflow
+     actions/             # Reusable GitHub Actions
+       deno-deploy/       # Base deployment action for apps
+       plugin-deploy/     # Plugin deployment (with transformations)
+       plugin-adapter/    # Plugin transformation logic
+       generate-project-name/  # Helper for project naming
+     workflows/           # Test workflows for this repo
+       test-plugin-deploy.yml  # Tests plugin deployment
+       test-app-deploy.yml     # Tests app deployment
+     examples/            # Example workflows for users
+       example-plugin.yml
+       example-app.yml
    docs/
      ... documentation files ...
    plugins/
@@ -38,38 +42,52 @@
    - `.github/workflows/ci.yml` (project-specific entry point)
    - `.github/workflows/templates/` (reusable workflow templates)
 
-## Deno Deploy Workflow
+## Deno Deploy Actions
 
-### Reusable Workflow Template
-The `deno-deploy.yml` template provides a standardized way to deploy Deno applications:
+### App Deployment Action
+Located at `.github/actions/deno-deploy/`:
+- Deploys applications directly to Deno Deploy
+- Auto-generates project names or accepts custom names
+- Supports organization deployment
+- Required inputs:
+  - `token`: Deno Deploy access token
+  - `action`: 'deploy' or 'delete'
+- Optional inputs:
+  - `entrypoint`: Script entrypoint (default: "worker/main.ts")
+  - `root`: Root directory (default: ".")
+  - `project_name`: Custom project name (auto-generated if not provided)
+  - `organization`: Target organization (defaults to personal account)
+  - `env_file`: Path to .env file
+  - `production`: Deploy to production (auto-detected from branch)
 
-**Inputs:**
-- `project_prefix`: Prefix for the Deno Deploy project name
-- `file_path`: Path to the file to deploy
-- `entrypoint`: Entrypoint file name
-- `organization_id`: Deno Deploy organization ID
-- `working_directory`: Optional working directory (default: '.')
+### Plugin Deployment Action
+Located at `.github/actions/plugin-deploy/`:
+- Deploys plugins with necessary transformations
+- Combines plugin-adapter + deno-deploy actions
+- Handles manifest.json updates
+- Required inputs:
+  - `token`: Deno Deploy access token
+- Optional inputs:
+  - `pluginEntry`: Path to plugin entry file (default: "./worker")
+  - `organization`: Target organization
 
-**Secrets:**
-- `DENO_DEPLOY_TOKEN`: Deno Deploy API token
+### Usage Examples
 
-**Outputs:**
-- `deployment_url`: The deployed application URL
-- `deployment_id`: The deployment ID
-- `project_id`: The project ID
-
-### Usage Example
+**App Deployment:**
 ```yaml
-jobs:
-  deploy:
-    uses: ./.github/workflows/templates/deno-deploy.yml
-    with:
-      project_prefix: my-app
-      file_path: src/main.ts
-      entrypoint: main.ts
-      organization_id: your-org-id
-    secrets:
-      DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+- uses: ./.github/actions/deno-deploy
+  with:
+    token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+    action: deploy
+    entrypoint: src/main.ts
+```
+
+**Plugin Deployment:**
+```yaml
+- uses: ./.github/actions/plugin-deploy
+  with:
+    token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+    pluginEntry: ./plugins/my-plugin/index.ts
 ```
 
 ## Technical Constraints
