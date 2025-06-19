@@ -1,22 +1,29 @@
-# Active Context: Initial Setup
+# Active Context: Deno Deploy CI Complete
 
 ## Current Focus
-- Creating core documentation structure
-- Setting up initial CI workflow templates
-- Establishing project conventions
+- Completed Deno Deploy CI workflow setup
+- Created reusable workflow templates
+- Fixed deployment issues
 
 ## Recent Changes
-- Created project-brief.md
-- Created product-context.md
-- Created active-context.md
+- Fixed hello-plugin-deploy.yml to deploy TypeScript directly (no compilation needed)
+- Added deployment URL output to CI job summary
+- Created reusable Deno Deploy workflow template at `.github/workflows/templates/deno-deploy.yml`
+- Updated hello-plugin-deploy.yml to use the reusable template
+- Updated tech-context.md with workflow documentation
+- Updated progress.md to reflect completed tasks
 
 ## Next Steps
-1. Create system-patterns.md
-2. Create tech-context.md
-3. Create progress.md
-4. Implement initial CI workflow templates
+1. Monitor next deployment to ensure workflow works correctly
+2. Consider implementing cleanup strategy for old Deno Deploy projects
+3. Create additional reusable workflows for:
+   - Linting (deno lint)
+   - Testing (deno test)
+   - Building (for projects that need it)
+4. Add support for deployment to existing projects (vs creating new ones)
 
 ## Active Decisions
-- Using GitHub Actions for CI
-- Targeting JavaScript/TypeScript projects initially
-- Prioritizing reusable workflows over project-specific configurations
+- Using direct curl API calls instead of deployctl for better control
+- Creating new projects per deployment (needs cleanup strategy)
+- Deno Deploy supports TypeScript natively - no build step needed
+- Using job summaries for easy access to deployment URLs

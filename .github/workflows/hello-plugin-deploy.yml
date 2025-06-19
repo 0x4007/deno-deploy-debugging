@@ -6,54 +6,15 @@ on:
     paths:
       - 'plugins/hello/**'
       - '.github/workflows/hello-plugin-deploy.yml'
+      - '.github/workflows/templates/deno-deploy.yml'
 
 jobs:
   deploy:
-    permissions:
-      id-token: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Build plugin
-        run: |
-          cd plugins/hello
-          deno compile --output main.js index.ts
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Create Deno Deploy project
-        id: create_project
-        run: |
-          PROJECT_NAME="hello-plugin-$GITHUB_RUN_ID"
-          ORGANIZATION_ID="1f86cd68-1bbf-4ac5-8d31-b6096bee31f0"
-          response=$(curl -s -w "%{http_code}" -X POST https://dash.deno.com/api/projects \
-            -H "Authorization: Bearer $DENO_DEPLOY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"$PROJECT_NAME\", \"organizationId\":\"$ORGANIZATION_ID\"}")
-          http_code=${response: -3}
-          body=${response%???}
-          if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
-            echo "Failed to create project: HTTP $http_code"
-            echo "Response: $body"
-            exit 1
-          fi
-          PROJECT_ID=$(echo "$body" | jq -r '.id')
-          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
-          echo "Created project: $PROJECT_NAME (ID: $PROJECT_ID) in organization $ORGANIZATION_ID"
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-
-      - name: Deploy to Deno Deploy
-        run: |
-          curl -X POST "https://dash.deno.com/api/v1/projects/${{ steps.create_project.outputs.project_id }}/deployments" \
-            -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
-            -F "file=@plugins/hello/main.js" \
-            -F "entrypoint=main.js"
+    uses: ./.github/workflows/templates/deno-deploy.yml
+    with:
+      project_prefix: hello-plugin
+      file_path: plugins/hello/index.ts
+      entrypoint: index.ts
+      organization_id: 1f86cd68-1bbf-4ac5-8d31-b6096bee31f0
+    secrets:
+      DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}

@@ -1,0 +1,113 @@
+name: Reusable Deno Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      project_prefix:
+        description: 'Prefix for the Deno Deploy project name'
+        required: true
+        type: string
+      file_path:
+        description: 'Path to the file to deploy'
+        required: true
+        type: string
+      entrypoint:
+        description: 'Entrypoint file name'
+        required: true
+        type: string
+      organization_id:
+        description: 'Deno Deploy organization ID'
+        required: true
+        type: string
+      working_directory:
+        description: 'Working directory for the deployment'
+        required: false
+        type: string
+        default: '.'
+    secrets:
+      DENO_DEPLOY_TOKEN:
+        description: 'Deno Deploy API token'
+        required: true
+    outputs:
+      deployment_url:
+        description: 'The deployed application URL'
+        value: ${{ jobs.deploy.outputs.deployment_url }}
+      deployment_id:
+        description: 'The deployment ID'
+        value: ${{ jobs.deploy.outputs.deployment_id }}
+      project_id:
+        description: 'The project ID'
+        value: ${{ jobs.deploy.outputs.project_id }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.deployment_url }}
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      project_id: ${{ steps.create_project.outputs.project_id }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Create Deno Deploy project
+        id: create_project
+        run: |
+          PROJECT_NAME="${{ inputs.project_prefix }}-$GITHUB_RUN_ID"
+          response=$(curl -s -w "%{http_code}" -X POST https://dash.deno.com/api/projects \
+            -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"$PROJECT_NAME\", \"organizationId\":\"${{ inputs.organization_id }}\"}")
+          http_code=${response: -3}
+          body=${response%???}
+          if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
+            echo "Failed to create project: HTTP $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+          PROJECT_ID=$(echo "$body" | jq -r '.id')
+          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "Created project: $PROJECT_NAME (ID: $PROJECT_ID)"
+
+      - name: Deploy to Deno Deploy
+        id: deploy
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          response=$(curl -s -w "%{http_code}" -X POST "https://dash.deno.com/api/v1/projects/${{ steps.create_project.outputs.project_id }}/deployments" \
+            -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
+            -F "file=@${{ inputs.file_path }}" \
+            -F "entrypoint=${{ inputs.entrypoint }}")
+          http_code=${response: -3}
+          body=${response%???}
+          if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
+            echo "Failed to deploy: HTTP $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+          # Extract deployment information
+          DEPLOYMENT_ID=$(echo "$body" | jq -r '.id')
+          PROJECT_NAME=$(echo "$body" | jq -r '.projectName')
+          DEPLOYMENT_URL="https://${PROJECT_NAME}.deno.dev"
+
+          echo "Deployment successful!"
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo "URL: $DEPLOYMENT_URL"
+
+          # Set outputs
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+
+          # Add to job summary
+          echo "## Deployment Complete 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project**: $PROJECT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment ID**: $DEPLOYMENT_ID" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: $DEPLOYMENT_URL" >> $GITHUB_STEP_SUMMARY
