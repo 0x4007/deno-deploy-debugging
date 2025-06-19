@@ -1,0 +1,164 @@
+name: "Deno Deploy Plugin Adapter"
+description: "Converts a plugin into a Deno-compatible deployment by creating entry points and handling manifest updates."
+inputs:
+  pluginEntry:
+    description: "The path to the plugin entry file. It is expected to export 'fetch' as a default."
+    required: false
+    default: "./worker"
+outputs:
+  project_name:
+    description: "The generated Deno project name"
+    value: ${{ steps.prepare_env.outputs.project_name }}
+  deployment_url:
+    description: "The deployment URL (only available after deployment)"
+    value: ${{ steps.prepare_env.outputs.deployment_url }}
+  entrypoint:
+    description: "The generated Deno entry point path"
+    value: "src/deno.ts"
+  manifest_exists:
+    description: "Whether manifest.json exists in the repository"
+    value: ${{ steps.check_manifest.outputs.exists }}
+  env_file_path:
+    description: "Path to the temporary .env file (in CI temp directory)"
+    value: ${{ steps.generate_env.outputs.env_file_path }}
+runs:
+  using: "composite"
+  steps:
+    - name: Generate Project Name
+      id: generate-project
+      uses: ../generate-project-name
+
+    - name: Set Project Name
+      shell: bash
+      run: |
+        echo "DENO_PROJECT_NAME=${{ steps.generate-project.outputs.project_name }}" >> $GITHUB_ENV
+        echo "project_name=${{ steps.generate-project.outputs.project_name }}" >> $GITHUB_OUTPUT
+        DENO_DEPLOYMENT_ID=${{ github.sha }}
+        echo "DENO_DEPLOYMENT_ID=$DENO_DEPLOYMENT_ID" >> $GITHUB_ENV
+        echo "Generated project name: ${{ steps.generate-project.outputs.project_name }}"
+
+    - name: Generate .env File in Temp Directory
+      id: generate_env
+      shell: bash
+      run: |
+        # Create a temporary directory for the .env file
+        TEMP_ENV_DIR="${RUNNER_TEMP}/deno-deploy-env"
+        mkdir -p "$TEMP_ENV_DIR"
+        ENV_FILE_PATH="$TEMP_ENV_DIR/.env"
+
+        cat > generate-env.ts <<'EOF'
+        const envVars = Deno.env.toObject();
+        const filtered = Object.entries(envVars)
+          .filter(([k, v]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|ACTIONS_)/.test(k))
+          .filter(([k, v]) => v !== undefined && v !== null && v.trim() !== "")
+          .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
+
+        const envPath = Deno.args[0];
+        await Deno.writeTextFile(envPath,
+          Object.entries(filtered)
+            .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
+            .join("\n")
+        );
+        EOF
+
+        deno run --allow-env --allow-write="$TEMP_ENV_DIR" generate-env.ts "$ENV_FILE_PATH"
+        rm generate-env.ts
+
+        echo "env_file_path=$ENV_FILE_PATH" >> $GITHUB_OUTPUT
+        echo "Generated .env file at: $ENV_FILE_PATH"
+
+    - name: Create Deno Entry Point
+      shell: bash
+      run: |
+        mkdir -p src
+        cat << 'EOF' > src/deno.ts
+        import worker from "${{ inputs.pluginEntry }}";
+        export default {
+          async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+            Object.assign(env, Deno.env.toObject());
+            return worker.fetch(request, env, executionCtx);
+          },
+        };
+        EOF
+
+    - name: Fix Import Extensions
+      shell: bash
+      run: |
+        find src -name "*.ts" -type f -exec sh -c '
+          sed -i.bak "
+            s/from \"\(\.\+[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
+            s/from '"'"'\(\.\+[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
+            s/from \"\(\.\+[^\"]*\)\"/from \"\1.ts\"/g;
+            s/from '"'"'\(\.\+[^'"'"']*\)'"'"'/from '"'"'\1.ts'"'"'/g;
+            s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
+            s/\.css\.ts/.css/g;
+            s/\.svg\.ts/.svg/g;
+            s/\.ts\.ts/.ts/g
+          " "$1"
+        ' _ {} \;
+        find src -name "*.ts.bak" -delete
+
+    - name: Check if manifest.json exists
+      id: check_manifest
+      shell: bash
+      run: |
+        if [ -f manifest.json ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update manifest.json with deployment URL
+      if: steps.check_manifest.outputs.exists == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # Construct the deployment URL
+        DEPLOYMENT_URL="https://${{ steps.prepare_env.outputs.project_name }}.deno.dev"
+        echo "Updating manifest.json with deployment URL: $DEPLOYMENT_URL"
+
+        # Create a Node.js script to update the manifest
+        cat > update-manifest.js <<'EOF'
+        const fs = require('fs');
+        const path = require('path');
+
+        const manifestPath = path.resolve(process.cwd(), './manifest.json');
+        const deploymentUrl = process.argv[2];
+
+        if (!fs.existsSync(manifestPath)) {
+          console.error('manifest.json not found');
+          process.exit(1);
+        }
+
+        try {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          manifest["homepage_url"] = deploymentUrl;
+
+          const updatedManifest = JSON.stringify(manifest, null, 2);
+          fs.writeFileSync(manifestPath, updatedManifest);
+          console.log('Successfully updated manifest.json');
+          console.log('Updated content:', updatedManifest);
+        } catch (error) {
+          console.error('Error updating manifest.json:', error);
+          process.exit(1);
+        }
+        EOF
+
+        # Run the Node.js script
+        node update-manifest.js "$DEPLOYMENT_URL"
+
+        # Clean up
+        rm update-manifest.js
+
+        # Format the manifest.json file with deno fmt if available
+        if command -v deno &> /dev/null; then
+          deno fmt --ext=json manifest.json || true
+        fi
+
+    - name: Store deployment URL
+      id: store_url
+      shell: bash
+      run: |
+        # This will be updated by the workflow after deployment
+        echo "deployment_url=" >> $GITHUB_OUTPUT

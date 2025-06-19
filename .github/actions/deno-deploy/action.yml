@@ -1,0 +1,297 @@
+name: "Deno Deploy Reusable Template"
+description: "Checks out the repository and publishes or deletes the project on Deno Deploy. The project name must be provided by the workflow."
+inputs:
+  action:
+    description: "Action to perform: 'deploy' or 'delete' the project."
+    required: true
+    default: "deploy"
+  token:
+    description: "Deno Deploy access token."
+    required: true
+  entrypoint:
+    description: "The entrypoint to the script that will be deployed."
+    required: false
+    default: "worker/main.ts"
+  root:
+    description: "The root directory of the script that will be deployed."
+    required: false
+    default: "."
+  project_name:
+    description: "The Deno Deploy project name. If not provided, will be generated automatically."
+    required: false
+  organization:
+    description: "The organization to target when deploying the project. If omitted, will default to the user account."
+    required: false
+  env_file:
+    description: "Path to .env file to use during deployment"
+    required: false
+    default: ""
+  production:
+    description: "Deploy to production (uses --prod flag). If not provided, will be determined automatically based on branch."
+    required: false
+    default: ""
+outputs:
+  deployment_url:
+    description: "The deployment URL"
+    value: ${{ steps.get_deployment_url.outputs.url }}
+runs:
+  using: "composite"
+  steps:
+    # Project name handling is now fully internalized
+    - name: Generate Project Name (if needed)
+      if: ${{ !inputs.project_name }}
+      id: generate-project
+      uses: ./.github/actions/generate-project-name
+
+    - name: Set Final Project Name
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.project_name }}" ]; then
+          echo "project_name=${{ inputs.project_name }}" >> $GITHUB_ENV
+        else
+          echo "project_name=${{ steps.generate-project.outputs.project_name }}" >> $GITHUB_ENV
+        fi
+        echo "Using project name: ${{ env.project_name }}"
+
+    - name: Determine Production Environment
+      id: production-flag
+      shell: bash
+      run: |
+        # Use provided value if available
+        if [ -n "${{ inputs.production }}" ]; then
+          echo "production_flag=${{ inputs.production }}" >> $GITHUB_OUTPUT
+          echo "Using provided production flag: ${{ inputs.production }}"
+        else
+          # Auto-detect based on branch
+          DEFAULT_BRANCH=$(curl -s -H "Authorization: token ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}" | \
+            jq -r '.default_branch')
+
+          CURRENT_BRANCH="${{ github.ref_name }}"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ]; then
+            echo "production_flag=true" >> $GITHUB_OUTPUT
+            echo "On default branch ($DEFAULT_BRANCH), deploying to production"
+          else
+            echo "production_flag=false" >> $GITHUB_OUTPUT
+            echo "Not on default branch (current: $CURRENT_BRANCH), deploying to preview"
+          fi
+        fi
+
+    - name: Checkout
+      uses: actions/checkout@v4.2.2.2.2
+
+    - name: Setup Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+
+    - name: Install deployctl
+      shell: bash
+      run: |
+        set -euo pipefail
+        deno install --global --allow-read --allow-write --allow-env --allow-net --allow-run --allow-sys --no-check -r -f https://deno.land/x/deploy@1.12.0/deployctl.ts
+        echo "DENO_PROJECT_NAME=${{ inputs.project_name }}" >> $GITHUB_ENV
+
+        # Verify installation
+        if ! command -v deployctl &> /dev/null; then
+          echo "❌ ERROR: deployctl installation failed"
+          exit 1
+        fi
+        echo "✅ deployctl installed successfully"
+
+    - name: Manage Deno Deploy Project (Deploy)
+      if: inputs.action == 'deploy'
+      shell: bash
+      env:
+        DENO_DEPLOY_TOKEN: ${{ inputs.token }}
+        DENO_PROJECT_NAME: ${{ env.project_name }}
+      run: |
+        set -euo pipefail
+        echo "Deploying project: $DENO_PROJECT_NAME"
+
+        # Validate entrypoint exists
+        if [ ! -f "${{ inputs.root }}/${{ inputs.entrypoint }}" ]; then
+          echo "❌ ERROR: Entrypoint file not found: ${{ inputs.root }}/${{ inputs.entrypoint }}"
+          exit 1
+        fi
+
+        # Function to try creating project
+        create_project() {
+          local org_flag="$1"
+          deployctl projects create \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$DENO_PROJECT_NAME \
+            $org_flag \
+            --color=never 2>&1
+        }
+
+        # Function to check if project exists
+        project_exists() {
+          deployctl projects show \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$DENO_PROJECT_NAME \
+            --color=never > /dev/null 2>&1
+        }
+
+        # Check if project already exists
+        if project_exists; then
+          echo "Project already exists, skipping creation"
+        elif [ -n "${{ inputs.organization }}" ]; then
+          echo "Attempting to create project in organization: ${{ inputs.organization }}"
+
+          # Try to create with organization
+          output=$(create_project "--org=${{ inputs.organization }}")
+          exit_code=$?
+
+          if [ $exit_code -ne 0 ]; then
+            echo "$output"
+
+            # Check if error is due to missing organization
+            if echo "$output" | grep -q -E "(organization|org|team) .* (not found|does not exist|doesn't exist)"; then
+              echo ""
+              echo "⚠️  WARNING: Organization '${{ inputs.organization }}' not found in Deno Deploy"
+              echo ""
+              echo "Attempting to create project under personal account instead..."
+
+              # Try without organization (personal account)
+              if ! create_project ""; then
+                echo ""
+                echo "❌ ERROR: Failed to create project in both organization and personal account"
+                echo ""
+                echo "To fix this issue, you have two options:"
+                echo ""
+                echo "1. Create a Deno Deploy organization/team named '${{ inputs.organization }}' at:"
+                echo "   https://dash.deno.com/account#organizations"
+                echo ""
+                echo "2. Remove the organization parameter from your workflow to deploy to your personal account"
+                echo ""
+                echo "For more information, see: https://docs.deno.com/deploy/manual/organizations"
+                exit 1
+              fi
+
+              echo "✅ Successfully created project under personal account"
+              echo ""
+              echo "ℹ️  Note: To deploy to an organization in the future, create a team named"
+              echo "   '${{ inputs.organization }}' at https://dash.deno.com/account#organizations"
+            else
+              # Other error, exit
+              echo "❌ ERROR: Failed to create project"
+              exit 1
+            fi
+          else
+            echo "✅ Successfully created project in organization: ${{ inputs.organization }}"
+          fi
+        else
+          # No organization specified, create in personal account
+          echo "Creating project in personal account (no organization specified)"
+          if ! create_project ""; then
+            echo "❌ ERROR: Failed to create project"
+            exit 1
+          fi
+          echo "✅ Successfully created project"
+        fi
+
+        # Build deployment command
+        DEPLOY_CMD="deployctl deploy \
+          --token=$DENO_DEPLOY_TOKEN \
+          --project=$DENO_PROJECT_NAME \
+          --entrypoint=${{ inputs.entrypoint }} \
+          --root=${{ inputs.root }} \
+          --color=never"
+
+        # Add production flag if enabled
+        if [ "${{ steps.production-flag.outputs.production_flag }}" = "true" ]; then
+          DEPLOY_CMD="$DEPLOY_CMD --prod"
+        fi
+
+        # Add env file if provided
+        if [ -n "${{ inputs.env_file }}" ] && [ -f "${{ inputs.env_file }}" ]; then
+          DEPLOY_CMD="$DEPLOY_CMD --env-file=${{ inputs.env_file }}"
+        fi
+
+        # Execute deployment
+        echo ""
+        echo "Executing deployment..."
+        eval $DEPLOY_CMD
+
+    - name: Get Deployment URL
+      if: inputs.action == 'deploy'
+      id: get_deployment_url
+      shell: bash
+      env:
+        DENO_DEPLOY_TOKEN: ${{ inputs.token }}
+        DENO_PROJECT_NAME: ${{ env.project_name }}
+      run: |
+        set -euo pipefail
+
+        # Get the deployment URL from Deno
+        echo "Fetching deployment URL..."
+        PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$DENO_PROJECT_NAME --color=never || true)
+
+        # Try multiple patterns to extract URL
+        PROJECT_URL=""
+        if [ -n "$PROJECT_INFO" ]; then
+          # Try to extract from Domain(s): line
+          PROJECT_URL=$(echo "$PROJECT_INFO" | grep -i "domain" | sed -E 's/.*Domain\(s\):[[:space:]]+([^[:space:]]+).*/\1/' || true)
+
+          # If not found, try to find any .deno.dev URL
+          if [ -z "$PROJECT_URL" ]; then
+            PROJECT_URL=$(echo "$PROJECT_INFO" | grep -o "[a-zA-Z0-9-]*\.deno\.dev" | head -n1 || true)
+          fi
+        fi
+
+        # Fallback to constructed URL if extraction failed
+        if [ -z "$PROJECT_URL" ]; then
+          PROJECT_URL="https://${DENO_PROJECT_NAME}.deno.dev"
+          echo "⚠️  WARNING: Could not extract URL from deployctl output, using constructed URL: $PROJECT_URL"
+        fi
+
+        echo "url=$PROJECT_URL" >> $GITHUB_OUTPUT
+        echo "Deployment URL: $PROJECT_URL"
+
+        # Write to step summary
+        echo "### 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Project:** $DENO_PROJECT_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "**URL:** $PROJECT_URL" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.production }}" = "true" ]; then
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Environment:** Preview" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Manage Deno Deploy Project (Delete)
+      if: inputs.action == 'delete'
+      shell: bash
+      env:
+        DENO_DEPLOY_TOKEN: ${{ inputs.token }}
+        DENO_PROJECT_NAME: ${{ env.project_name }}
+      run: |
+        set -euo pipefail
+        echo "Deleting project: $DENO_PROJECT_NAME"
+
+        # Attempt to delete the project
+        if deployctl projects delete \
+          --token=$DENO_DEPLOY_TOKEN \
+          --project=$DENO_PROJECT_NAME \
+          --force \
+          --color=never; then
+          echo "✅ Successfully deleted project: $DENO_PROJECT_NAME"
+
+          # Write to step summary
+          echo "### 🗑️ Project Deleted" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** $DENO_PROJECT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Successfully deleted" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ ERROR: Failed to delete project: $DENO_PROJECT_NAME"
+
+          # Write error to step summary
+          echo "### ❌ Deletion Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** $DENO_PROJECT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Failed to delete" >> $GITHUB_STEP_SUMMARY
+
+          exit 1
+        fi

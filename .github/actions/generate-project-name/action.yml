@@ -1,0 +1,52 @@
+name: "Generate Project Name"
+description: "Generates a project name based on repository and branch"
+inputs:
+  branch_name:
+    description: "Branch name (if not provided, will be determined from context)"
+    required: false
+    default: ""
+outputs:
+  project_name:
+    description: "Generated project name"
+    value: ${{ steps.generate.outputs.project_name }}
+runs:
+  using: "composite"
+  steps:
+    - name: Generate project name
+      id: generate
+      shell: bash
+      run: |
+        # Get branch name if not provided
+        if [ -z "${{ inputs.branch_name }}" ]; then
+          if [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            branch_name="${{ github.event.workflow_run.head_branch }}"
+          elif [ -n "${{ github.head_ref }}" ]; then
+            branch_name="${{ github.head_ref }}"
+          else
+            branch_name="${GITHUB_REF#refs/heads/}"
+          fi
+        else
+          branch_name="${{ inputs.branch_name }}"
+        fi
+
+        # Determine base name from package.json or repository
+        if [ -f package.json ]; then
+          base_name=$(jq -r .name package.json 2>/dev/null)
+          [[ "$base_name" == "null" || -z "$base_name" ]] && base_name="${GITHUB_REPOSITORY##*/}"
+        else
+          base_name="${GITHUB_REPOSITORY##*/}"
+        fi
+
+        # Sanitize branch name
+        sanitized_branch=$(echo "$branch_name" | sed 's#/#--#g' | sed 's#[^a-zA-Z0-9-]#-#g')
+
+        # Combine and truncate if needed
+        project_name="${base_name}-${sanitized_branch}"
+        if [ ${#project_name} -gt 26 ]; then
+          project_prefix=$(echo "$base_name" | cut -c 1-10)
+          branch_hash=$(echo "$branch_name" | sha256sum | cut -c 1-8)
+          project_name="${project_prefix}-${branch_hash}"
+        fi
+
+        echo "project_name=$project_name" >> $GITHUB_OUTPUT
+        echo "Generated project name: $project_name"

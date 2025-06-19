@@ -1,0 +1,19 @@
+name: Deno Deploy
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Deploy to Deno
+        uses: ./.github/actions/deno-deploy
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
+          entrypoint: "worker/main.ts"

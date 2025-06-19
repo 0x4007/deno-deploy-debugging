@@ -1,0 +1,19 @@
+name: Deploy App to Deno Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Deploy using Deno-Deploy Action
+        uses: ./.github/actions/deno-deploy
+        with:
+          action: "deploy"
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          entrypoint: "worker/main.ts"  # Update to your app's entrypoint
+          # organization: "your-org-name" # Optional

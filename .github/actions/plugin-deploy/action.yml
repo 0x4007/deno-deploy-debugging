@@ -1,0 +1,35 @@
+name: "Plugin Deployment"
+description: "Deploys a plugin to Deno Deploy by combining plugin preparation and deployment steps"
+inputs:
+  token:
+    description: "Deno Deploy access token."
+    required: true
+  pluginEntry:
+    description: "Path to the plugin entry file"
+    required: false
+    default: "./worker"
+  organization:
+    description: "Organization for deployment (optional)"
+    required: false
+outputs:
+  deployment_url:
+    description: "The deployment URL"
+    value: ${{ steps.deploy.outputs.deployment_url }}
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Plugin
+      id: prepare
+      uses: ../plugin-adapter
+      with:
+        pluginEntry: "${{ inputs.pluginEntry }}"
+
+    - name: Deploy to Deno
+      id: deploy
+      uses: ../deno-deploy
+      with:
+        token: ${{ inputs.token }}
+        action: "deploy"
+        entrypoint: ${{ steps.prepare.outputs.entrypoint }}
+        env_file: ${{ steps.prepare.outputs.env_file_path }}
+        organization: "${{ inputs.organization }}"
