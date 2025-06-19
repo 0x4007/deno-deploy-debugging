@@ -199,13 +199,20 @@ runs:
         
         # Fix imports in all TypeScript files
         find . -name "*.ts" -type f -exec sh -c '
-          sed -i.bak "
-            s/from \"\(\.[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
-            s/from '"'"'\(\.[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
+          # First, check if the file already has "with { type: \"json\" }" and skip JSON processing if so
+          if ! grep -q "with { type: \"json\" }" "$1"; then
+            sed -i.bak "
+              s/from \"\(\.[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
+              s/from '"'"'\(\.[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
+            " "$1"
+          fi
+          
+          # Always process other imports
+          sed -i.bak2 "
             s/from \"\.\/types\"/from \"\.\/types\/index\.ts\"/g;
             s/from '"'"'\.\/types'"'"'/from '"'"'\.\/types\/index\.ts'"'"'/g;
-            s/from \"\(\.[^\"]*\)\"/from \"\1.ts\"/g;
-            s/from '"'"'\(\.[^'"'"']*\)'"'"'/from '"'"'\1.ts'"'"'/g;
+            s/from \"\(\.[^\"]*[^n]\)\"/from \"\1.ts\"/g;
+            s/from '"'"'\(\.[^'"'"']*[^n]\)'"'"'/from '"'"'\1.ts'"'"'/g;
             s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
             s/\.css\.ts/.css/g;
             s/\.svg\.ts/.svg/g;
@@ -214,6 +221,7 @@ runs:
           " "$1"
         ' _ {} \;
         find . -name "*.ts.bak" -delete
+        find . -name "*.ts.bak2" -delete
 
     - name: Check if manifest.json exists and copy to root
       id: check_manifest
