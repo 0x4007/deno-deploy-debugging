@@ -25,7 +25,7 @@ jobs:
           deno-version: '1.40.0'
 
       - name: Bundle plugin-template
-        run: deno bundle plugins/plugin-template/src/index.ts plugins/plugin-template-bundle.js
+        run: deno bundle --unstable-sloppy-imports plugins/plugin-template/src/index.ts plugins/plugin-template-bundle.js
 
       - name: Verify bundle
         run: ls -la plugins/plugin-template-bundle.js
