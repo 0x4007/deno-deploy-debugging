@@ -73,47 +73,40 @@ runs:
       with:
         node-version: '20'
 
-    - name: Create Deno-Compatible Plugin Wrapper
+    - name: Install and Bundle Plugin
       shell: bash
       run: |
-        # Extract plugin directory from entry path (remove src/ part)
+        # Extract plugin directory from entry path
         FULL_PATH="${{ inputs.pluginEntry }}"
-        # Get the base plugin directory (e.g., plugins/plugin-template)
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
         
-        # Create a Deno-compatible wrapper that uses npm: specifiers
-        cat > "${PLUGIN_DIR}/deno-worker.ts" << 'EOF'
-        // Deno-compatible wrapper for the plugin
-        // Import npm packages using npm: specifiers
-        import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger@1.4.0";
-        import { createPlugin } from "npm:@ubiquity-os/plugin-sdk@3.1.8";
-        import { Manifest } from "npm:@ubiquity-os/plugin-sdk@3.1.8/manifest";
-        import { ExecutionContext } from "npm:hono@4.6.19";
-        import manifest from "./manifest.json" with { type: "json" };
-        import { runPlugin } from "./src/index";
-        import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./src/types";
+        # Install dependencies
+        cd "$PLUGIN_DIR"
+        npm install
         
-        export default {
-          async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
-            return createPlugin<PluginSettings, Env, null, SupportedEvents>(
-              (context) => {
-                return runPlugin(context);
-              },
-              manifest as Manifest,
-              {
-                envSchema: envSchema,
-                postCommentOnError: true,
-                settingsSchema: pluginSettingsSchema,
-                logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
-                kernelPublicKey: env.KERNEL_PUBLIC_KEY,
-                bypassSignatureVerification: Deno.env.get("NODE_ENV") === "local",
-              }
-            ).fetch(request, env, executionCtx);
-          },
-        };
-        EOF
+        # Install esbuild
+        npm install --save-dev esbuild
         
-        echo "Created Deno-compatible wrapper at: ${PLUGIN_DIR}/deno-worker.ts"
+        # Bundle the worker with all dependencies
+        npx esbuild src/worker.ts \
+          --bundle \
+          --platform=neutral \
+          --format=esm \
+          --target=es2022 \
+          --outfile=bundled-worker.js \
+          --external:node:* \
+          --banner:js="import { Buffer } from 'node:buffer'; globalThis.Buffer = Buffer;" \
+          --define:process.env.NODE_ENV=\"production\" \
+          --alias:@ubiquity-os/ubiquity-os-logger=npm:@ubiquity-os/ubiquity-os-logger@1.4.0 \
+          --alias:@ubiquity-os/plugin-sdk=npm:@ubiquity-os/plugin-sdk@3.1.8 \
+          --alias:@sinclair/typebox=npm:@sinclair/typebox@0.32.35 \
+          --alias:dotenv/config=npm:dotenv@16.4.5/config \
+          --alias:hono=npm:hono@4.6.19
+        
+        # Go back to root
+        cd -
+        
+        echo "Bundled plugin at: ${PLUGIN_DIR}/bundled-worker.js"
 
     - name: Generate .env File
       id: generate_env
@@ -149,14 +142,14 @@ runs:
       shell: bash
       run: |
         mkdir -p src
-        # Use the Deno-compatible wrapper
+        # Use the bundled worker
         FULL_PATH="${{ inputs.pluginEntry }}"
         # Get the base plugin directory (e.g., plugins/plugin-template)
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
-        DENO_WORKER_PATH="../${PLUGIN_DIR}/deno-worker.ts"
+        BUNDLED_WORKER_PATH="../${PLUGIN_DIR}/bundled-worker.js"
         
         cat << EOF > src/deno.ts
-        import worker from "$DENO_WORKER_PATH";
+        import worker from "$BUNDLED_WORKER_PATH";
         export default {
           async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
             const url = new URL(request.url);
@@ -180,17 +173,6 @@ runs:
         };
         EOF
 
-    - name: Create Deno Configuration
-      shell: bash
-      run: |
-        # Create deno.json with sloppy imports enabled
-        cat > deno.json << 'EOF'
-        {
-          "unstable": ["sloppy-imports"]
-        }
-        EOF
-        
-        echo "Created deno.json with sloppy imports enabled"
 
     - name: Check if manifest.json exists and copy to root
       id: check_manifest
