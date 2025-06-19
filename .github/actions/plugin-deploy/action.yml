@@ -85,7 +85,7 @@ runs:
         # Install dependencies if package.json exists
         if [ -f "package.json" ]; then
           echo "Installing plugin dependencies..."
-          npm install
+          npm install --legacy-peer-deps
           
           # List installed packages for debugging
           echo "Installed packages:"
@@ -93,7 +93,7 @@ runs:
         fi
         
         # Install esbuild locally in the plugin directory
-        npm install --save-dev esbuild
+        npm install --save-dev --legacy-peer-deps esbuild
         
         # Bundle the plugin
         echo "Bundling plugin..."
