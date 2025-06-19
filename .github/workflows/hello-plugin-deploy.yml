@@ -19,12 +19,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build plugin
+      - name: Install dependencies and build plugin
         run: |
           cd plugins/hello
+          npm install
           npm run build
 
       - name: Create Deno Deploy project
