@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'plugins/hello/**'
+      - '.github/workflows/hello-plugin-deploy.yml'
 
 jobs:
   deploy:
@@ -35,6 +36,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"name\":\"$PROJECT_NAME\"}"
           echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          echo "Created project: $PROJECT_NAME"
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
