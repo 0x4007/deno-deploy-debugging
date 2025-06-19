@@ -19,37 +19,8 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: '1.40.0'
-
-      - name: Fix Import Extensions
-        working-directory: plugins/plugin-template
-        run: |
-          find src -name "*.ts" -type f -exec sh -c '
-            sed -i.bak "
-              s/from \"\(\.\+[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
-              s/from '"'"'\(\.\+[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
-              s/from \"\(\.\+[^\"]*\)\"/from \"\1.ts\"/g;
-              s/from '"'"'\(\.\+[^'"'"']*\)'"'"'/from '"'"'\1.ts'"'"'/g;
-              s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
-              s/\.css\.ts/.css/g;
-              s/\.svg\.ts/.svg/g;
-              s/\.ts\.ts/.ts/g
-            " "$1"
-          ' _ {} \;
-          find src -name "*.ts.bak" -delete
-
-      - name: Bundle plugin-template
-        run: deno bundle --unstable-sloppy-imports plugins/plugin-template/src/index.ts plugins/plugin-template-bundle.js
-
-      - name: Verify bundle
-        run: ls -la plugins/plugin-template-bundle.js
-
       - name: Deploy plugin template
         uses: ./.github/actions/plugin-deploy
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           pluginEntry: ./plugins/plugin-template-adapter.ts
-          workingDirectory: .

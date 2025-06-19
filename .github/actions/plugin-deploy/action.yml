@@ -121,10 +121,12 @@ runs:
     - name: Fix Import Extensions
       shell: bash
       run: |
-        find src -name "*.ts" -type f -exec sh -c '
+        find . -name "*.ts" -type f -exec sh -c '
           sed -i.bak "
             s/from \"\(\.\+[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
             s/from '"'"'\(\.\+[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
+            s/from \"\.\/types\"/from \"\.\/types\/index\.ts\"/g;
+            s/from '"'"'\.\/types'"'"'/from '"'"'\.\/types\/index\.ts'"'"'/g;
             s/from \"\(\.\+[^\"]*\)\"/from \"\1.ts\"/g;
             s/from '"'"'\(\.\+[^'"'"']*\)'"'"'/from '"'"'\1.ts'"'"'/g;
             s/\.json\.ts\" with { type: \"json\" }/.json\" with { type: \"json\" }/g;
@@ -133,7 +135,7 @@ runs:
             s/\.ts\.ts/.ts/g
           " "$1"
         ' _ {} \;
-        find src -name "*.ts.bak" -delete
+        find . -name "*.ts.bak" -delete
 
     - name: Check if manifest.json exists
       id: check_manifest

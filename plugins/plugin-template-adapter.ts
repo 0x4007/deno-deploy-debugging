@@ -1,4 +1,4 @@
-import { runPlugin } from './plugin-template-bundle.js';
+import { runPlugin } from './plugin-template/src/index.ts';
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>): Promise<Response> {
