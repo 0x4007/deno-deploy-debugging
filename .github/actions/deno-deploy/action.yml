@@ -30,6 +30,10 @@ inputs:
     description: "Deploy to production (uses --prod flag). If not provided, will be determined automatically based on branch."
     required: false
     default: ""
+  skip_checkout:
+    description: "Skip the checkout step (useful when called from another action that already checked out)"
+    required: false
+    default: "false"
 outputs:
   deployment_url:
     description: "The deployment URL"
@@ -112,6 +116,7 @@ runs:
         fi
 
     - name: Checkout
+      if: inputs.skip_checkout != 'true'
       uses: actions/checkout@v4
 
     - name: Setup Deno

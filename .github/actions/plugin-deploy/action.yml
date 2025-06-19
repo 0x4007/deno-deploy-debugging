@@ -197,3 +197,4 @@ runs:
         entrypoint: src/deno.ts
         env_file: ${{ steps.generate_env.outputs.env_file_path }}
         organization: "${{ inputs.organization }}"
+        skip_checkout: "true"
