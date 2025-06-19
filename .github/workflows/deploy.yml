@@ -1,19 +1,21 @@
-name: Deno Deploy
+name: Deploy to Deno Deploy
+
 on:
-  workflow_dispatch:
   push:
+    branches: [ main ]
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy
     permissions:
-      contents: read
-      id-token: write
+      id-token: write   # Required for OIDC authentication
+      contents: read     # Required to access repository
     steps:
-      - uses: actions/checkout@v4.2.2
-      - name: Deploy to Deno
-        uses: ./.github/actions/deno-deploy
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
         with:
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
-          entrypoint: "worker/main.ts"
+          project: hello-world-app
+          entrypoint: apps/hello-world/main.ts
