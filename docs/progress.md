@@ -31,13 +31,45 @@
 
 ## GitHub Actions CI Results
 
+### Run 1 (Failed)
 - **Workflow**: hello-plugin-deploy.yml
-- **Status**: Fixed (requires secret setup)
-- **Resolution**:
-  - Replaced invalid action with official Deno Deploy action
-  - Requires setting `DENO_DEPLOY_TOKEN` secret in GitHub
-  - To set up:
-    1. Create access token at https://dash.deno.com/account#access-tokens
-    2. In GitHub repo, go to Settings → Secrets → Actions
-    3. Add new secret named `DENO_DEPLOY_TOKEN` with token value
-- **Next Run**: Will trigger on next push to `plugins/hello/**`
+- **Commit**: 7240976
+- **Status**: Failed
+- **Conclusion**: Permission error accessing project 'hello-world-app'
+- **Run URL**: https://github.com/0x4007/deno-deploy-debugging/actions/runs/15755371702
+- **Errors**:
+  - APIError: The authorization token is not valid: You don't have permission to access the project 'hello-world-app'
+
+### Run 2 (Failed)
+- **Workflow**: hello-plugin-deploy.yml
+- **Commit**: d04c971
+- **Status**: Failed
+- **Conclusion**: Missing package.json at root
+- **Run URL**: https://github.com/0x4007/deno-deploy-debugging/actions/runs/15756133593
+- **Errors**:
+  - npm error enoent Could not read package.json
+
+### Run 3 (In Progress)
+- **Workflow**: hello-plugin-deploy.yml
+- **Commit**: 7cb6d28
+- **Status**: Running
+- **Run URL**: https://github.com/0x4007/deno-deploy-debugging/actions/runs/15756159488
+- **Changes**:
+  - Fixed permission error by creating unique project names per run
+  - Fixed missing package.json error by moving npm install to plugin directory
+  - Added error handling for project creation API calls
+
+### Important Note
+The workflow requires the `DENO_DEPLOY_TOKEN` secret to be set in GitHub.
+To set up:
+  1. Create access token at https://dash.deno.com/account#access-tokens
+  2. In GitHub repo, go to Settings → Secrets → Actions
+  3. Add new secret named `DENO_DEPLOY_TOKEN` with token value
+
+### Run 4 (Pending)
+- **Workflow**: hello-plugin-deploy.yml
+- **Commit**: f2cbd47
+- **Changes**:
+  - Added unique project naming using GitHub Run ID to prevent conflicts
+  - Added error handling for project creation API calls
+  - Updated workflow triggers to include changes to workflow file

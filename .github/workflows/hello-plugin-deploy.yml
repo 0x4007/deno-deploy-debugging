@@ -29,10 +29,17 @@ jobs:
         id: create_project
         run: |
           PROJECT_NAME="hello-plugin-$GITHUB_RUN_ID"
-          curl -X POST https://dash.deno.com/api/projects \
+          response=$(curl -s -w "%{http_code}" -X POST https://dash.deno.com/api/projects \
             -H "Authorization: Bearer $DENO_DEPLOY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"$PROJECT_NAME\"}"
+            -d "{\"name\":\"$PROJECT_NAME\"}")
+          http_code=${response: -3}
+          body=${response%???}
+          if [ "$http_code" -ne 201 ]; then
+            echo "Failed to create project: HTTP $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
           echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           echo "Created project: $PROJECT_NAME"
         env:
