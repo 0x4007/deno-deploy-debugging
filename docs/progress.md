@@ -66,10 +66,32 @@ To set up:
   2. In GitHub repo, go to Settings → Secrets → Actions
   3. Add new secret named `DENO_DEPLOY_TOKEN` with token value
 
-### Run 4 (Pending)
+### Run 4 (Failed)
 - **Workflow**: hello-plugin-deploy.yml
-- **Commit**: f2cbd47
+- **Commit**: 013e227
+- **Status**: Failed
+- **Conclusion**: Permission error accessing project
+- **Run URL**: https://github.com/0x4007/deno-deploy-debugging/actions/runs/15756521971
+- **Errors**:
+  - APIError: The authorization token is not valid: You don't have permission to access the project 'hello-plugin-15756521971'
+
+### Run 5 (Pending)
+- **Workflow**: hello-plugin-deploy.yml
+- **Commit**: 225c370
 - **Changes**:
-  - Added unique project naming using GitHub Run ID to prevent conflicts
-  - Added error handling for project creation API calls
-  - Updated workflow triggers to include changes to workflow file
+  - Fixed entrypoint to use compiled JS file instead of TS file
+  - Added project-scoped access token creation step
+  - Using project-specific token for deployment instead of global token
+
+### Important Note
+The workflow requires the `DENO_DEPLOY_TOKEN` secret to have:
+- Project creation permissions
+- Access token creation permissions
+- Deployment permissions
+
+To verify token permissions:
+1. Go to Deno Deploy dashboard → Account Settings → Access Tokens
+2. Check scopes for your token include:
+   - Project creation
+   - Access token creation
+   - Deployment

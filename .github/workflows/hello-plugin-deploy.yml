@@ -52,4 +52,4 @@ jobs:
           project: ${{ steps.create_project.outputs.project_name }}
           entrypoint: plugins/hello/main.js
         env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_DEPLOY_TOKEN: ${{ env.DEPLOY_ACCESS_TOKEN }}
