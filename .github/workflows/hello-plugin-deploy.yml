@@ -17,9 +17,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.45.0
+          deno-version: v2.x
 
       - name: Build plugin
         run: |
@@ -52,4 +52,4 @@ jobs:
           project: ${{ steps.create_project.outputs.project_name }}
           entrypoint: plugins/hello/main.js
         env:
-          DENO_DEPLOY_TOKEN: ${{ env.DEPLOY_ACCESS_TOKEN }}
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
