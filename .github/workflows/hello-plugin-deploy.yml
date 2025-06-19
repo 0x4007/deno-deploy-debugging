@@ -34,7 +34,7 @@ jobs:
             -d "{\"name\":\"$PROJECT_NAME\"}")
           http_code=${response: -3}
           body=${response%???}
-          if [ "$http_code" -ne 201 ]; then
+          if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
             echo "Failed to create project: HTTP $http_code"
             echo "Response: $body"
             exit 1
