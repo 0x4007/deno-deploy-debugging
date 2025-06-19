@@ -21,6 +21,12 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # Setup Deno first (needed for env generation)
+    - name: Setup Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+
     # Generate project name
     - name: Generate Project Name
       id: generate-project
