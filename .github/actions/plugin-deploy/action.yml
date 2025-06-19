@@ -183,7 +183,8 @@ runs:
     - name: Fix Import Extensions
       shell: bash
       run: |
-        find . -name "*.ts" -type f -exec sh -c '
+        # Fix imports in all TypeScript files except deno-worker.ts
+        find . -name "*.ts" -type f ! -name "deno-worker.ts" -exec sh -c '
           sed -i.bak "
             s/from \"\(\.[^\"]*\)\.json\"/from \"\1.json\" with { type: \"json\" }/g;
             s/from '"'"'\(\.[^'"'"']*\)\.json'"'"'/from '"'"'\1.json'"'"' with { type: \"json\" }/g;
