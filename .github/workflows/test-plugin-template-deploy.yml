@@ -2,13 +2,7 @@ name: Test Plugin Template Deployment
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'plugins/plugin-template/**'
-      - '.github/workflows/test-plugin-template-deploy.yml'
-      - '.github/actions/plugin-deploy/**'
-      - 'plugins/plugin-template-adapter.ts'
+  workflow_dispatch:
 
 jobs:
   deploy:
