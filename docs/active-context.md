@@ -2,21 +2,21 @@
 
 ## Current Focus
 - Implementing Deno's native Node.js compatibility for plugin deployment
-- Using npm: specifiers and node: specifiers for module resolution
-- Leveraging Deno's built-in features instead of complex bundling
+- Dynamically generating import maps from plugin's package.json
+- Creating a truly reusable deployment template for any plugin
 
 ## Recent Changes
-- Removed complex esbuild bundling approach
-- Implemented direct npm: imports in Deno entry point
-- Added deno.json configuration for better compatibility
-- Simplified deployment process using Deno's native features
-- Added support for sloppy imports and node globals
+- Updated deployctl to use JSR version (jsr:@deno/deployctl)
+- Dynamic import map generation from package.json dependencies
+- Copy plugin source files to deployment root
+- Auto-detect and map all npm dependencies
+- Special handling for common subpath imports
 
 ## Key Solutions Implemented
-1. **Direct npm: imports**: Using `npm:@package-name` syntax for npm packages
-2. **Node.js compatibility**: Leveraging Deno's built-in node: specifiers
-3. **Configuration**: Added deno.json with proper compiler options
-4. **Simplified wrapper**: Direct import of plugin worker without bundling
+1. **Dynamic Import Maps**: Generate from package.json dependencies automatically
+2. **File Structure**: Copy plugin files to root to maintain import paths
+3. **JSR deployctl**: Using the latest deployctl from Deno's package registry
+4. **Universal Template**: Works with any plugin without hardcoded dependencies
 
 ## Deployment Architecture
 ```
@@ -24,23 +24,31 @@ Plugin Source (Node.js/TypeScript)
     ↓
 CI: npm install (for type checking)
     ↓
-Deno wrapper with npm: imports
+Copy plugin files to root
     ↓
-Deno Deploy (with native Node.js support)
+Create deno.json with import maps
+    ↓
+Deno Deploy (with import resolution)
 ```
 
-## Deno Configuration
-```json
-{
-  "compilerOptions": {
-    "allowJs": true,
-    "lib": ["deno.window"],
-    "strict": false
-  },
-  "nodeModulesDir": true,
-  "unstable": ["sloppy-imports", "node-globals"]
-}
+## Deno Configuration (Dynamically Generated)
+The deno.json is generated dynamically based on the plugin's package.json:
+
+```javascript
+// Reads dependencies from package.json
+const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+
+// Generates import map entries like:
+// "package-name": "npm:package-name@version"
+// "package-name/": "npm:package-name@version/"
+
+// Plus local path mappings:
+// "../manifest.json": "./manifest.json"
+// "./index": "./src/index.ts"
+// "./types": "./src/types/index.ts"
 ```
+
+This ensures the deployment works with any plugin without hardcoding specific dependencies.
 
 ## Important Decisions
 1. Use Deno's native Node.js compatibility features
@@ -57,8 +65,10 @@ Deno Deploy (with native Node.js support)
 4. Document the final working solution
 
 ## Key Learnings
-- Deno's npm: specifiers eliminate most compatibility issues
+- Dynamic import map generation makes the template truly reusable
+- JSR deployctl (jsr:@deno/deployctl) is more reliable than the old version
+- Reading package.json dependencies eliminates hardcoding
+- Special subpath imports (like /manifest) need explicit mapping
 - The `nodeModulesDir: true` option helps with module resolution
-- Unstable features like sloppy-imports provide flexibility
-- Direct imports are simpler than bundling for Deno Deploy
-- Native Node.js compatibility in Deno v2 is robust
+- Deno Deploy requires all imports to be properly mapped
+- A reusable template must discover dependencies, not hardcode them

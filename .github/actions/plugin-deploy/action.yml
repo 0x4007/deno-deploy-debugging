@@ -87,21 +87,7 @@ runs:
         # Go back to root
         cd -
         
-        # Create deno.json configuration
-        cat > deno.json <<'EOF'
-        {
-          "compilerOptions": {
-            "allowJs": true,
-            "lib": ["deno.window"],
-            "strict": false
-          },
-          "nodeModulesDir": true,
-          "unstable": ["sloppy-imports", "node-globals"]
-        }
-        EOF
-        
         echo "Plugin dependencies installed in: ${PLUGIN_DIR}"
-        echo "Created deno.json configuration"
 
     - name: Generate .env File
       id: generate_env
@@ -136,27 +122,72 @@ runs:
     - name: Create Deno Entry Point
       shell: bash
       run: |
-        mkdir -p src
         # Get plugin directory path
         FULL_PATH="${{ inputs.pluginEntry }}"
         PLUGIN_DIR=$(echo "$FULL_PATH" | sed 's|/src/.*||')
         
-        # Create a Deno-compatible wrapper using npm: specifiers
-        cat << EOF > src/deno.ts
-        // Import with npm: specifiers for Deno compatibility
-        import "npm:dotenv/config";
-        import { createPlugin } from "npm:@ubiquity-os/plugin-sdk@^3.1.4";
-        import { Manifest } from "npm:@ubiquity-os/plugin-sdk@^3.1.4/manifest";
-        import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger@^1.4.0";
+        # Copy necessary plugin files to root
+        cp -r "${PLUGIN_DIR}/src" ./
+        cp "${PLUGIN_DIR}/manifest.json" ./manifest.json || true
         
-        // Import the plugin's worker directly
-        import pluginWorker from "../${PLUGIN_DIR}/src/worker.ts";
+        # Generate import maps dynamically from package.json
+        cat > generate-import-map.js <<'EOF'
+        const fs = require('fs');
+        const path = require('path');
         
-        // Re-export the worker's fetch handler
-        export default pluginWorker;
+        // Read package.json from plugin directory
+        const pluginDir = process.argv[2];
+        const packageJsonPath = path.join(pluginDir, 'package.json');
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        
+        // Start with base configuration
+        const denoConfig = {
+          compilerOptions: {
+            allowJs: true,
+            lib: ["deno.window"],
+            strict: false
+          },
+          nodeModulesDir: true,
+          unstable: ["sloppy-imports", "node-globals"],
+          imports: {
+            // Add local path mappings
+            "../manifest.json": "./manifest.json",
+            "./index": "./src/index.ts",
+            "./types": "./src/types/index.ts"
+          }
+        };
+        
+        // Add dependencies to import map
+        const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+        for (const [pkg, version] of Object.entries(deps)) {
+          // Skip Node.js built-ins and local packages
+          if (pkg.startsWith('node:') || pkg.startsWith('.') || pkg.startsWith('/')) continue;
+          
+          // Clean version string (remove ^, ~, etc)
+          const cleanVersion = version.replace(/^[\^~]/, '');
+          
+          // Add main package import
+          denoConfig.imports[pkg] = `npm:${pkg}@${cleanVersion}`;
+          
+          // Add subpath imports (for packages like @ubiquity-os/plugin-sdk/manifest)
+          denoConfig.imports[`${pkg}/`] = `npm:${pkg}@${cleanVersion}/`;
+          
+          // Add common subpath imports for known packages
+          if (pkg === '@ubiquity-os/plugin-sdk') {
+            denoConfig.imports[`${pkg}/manifest`] = `npm:${pkg}@${cleanVersion}/dist/manifest.js`;
+          }
+        }
+        
+        // Write deno.json
+        fs.writeFileSync('deno.json', JSON.stringify(denoConfig, null, 2));
+        console.log('Generated deno.json with import maps');
         EOF
         
-        echo "Created Deno entry point at src/deno.ts"
+        # Run the import map generator
+        node generate-import-map.js "${PLUGIN_DIR}"
+        rm generate-import-map.js
+        
+        echo "Copied plugin files to root directory and generated import maps"
 
 
     - name: Check if manifest.json exists and copy to root
@@ -231,7 +262,7 @@ runs:
         token: ${{ inputs.token }}
         action: "deploy"
         project_name: ${{ steps.generate-project.outputs.project_name }}
-        entrypoint: src/deno.ts
+        entrypoint: src/worker.ts
         env_file: ${{ steps.generate_env.outputs.env_file_path }}
         organization: "${{ inputs.organization }}"
         skip_checkout: "true"
